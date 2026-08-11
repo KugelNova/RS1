@@ -6,7 +6,7 @@
             <geometry>
             <plane>
                 <normal>0 0 1</normal>
-                <size>25 25</size>
+                <size>100 100</size>
             </plane>
             </geometry>
         </collision>-->
@@ -14,7 +14,7 @@
             <geometry>
             <box>
                 <normal>0 0 1</normal>
-                <size>25 25 0.01</size>
+                <size>100 100 0.01</size>
             </box>
             </geometry>
         </collision>
@@ -23,7 +23,7 @@
             <geometry>
             <plane>
                 <normal>0 0 1</normal>
-                <size>25 25</size>
+                <size>100 100</size>
             </plane>
             </geometry>
             <material>
