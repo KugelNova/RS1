@@ -264,14 +264,14 @@ def generate_launch_description():
 
     parrot_launch_arg = DeclareLaunchArgument(
         'parrot',
-        default_value='False',
+        default_value='True',
         description='Launch the Parrot drone instance in namespace /parrot1',
     )
     ld.add_action(parrot_launch_arg)
 
     world_launch_arg = DeclareLaunchArgument(
         'world',
-        default_value='simple_trees',
+        default_value='rescue_forest',
         description='Which world to load',
         choices=['simple_trees', 'large_demo','rescue_forest'],
     )
