@@ -25,4 +25,11 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
+install(
+  PROGRAMS
+    scripts/autonomous_controller.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME autonomous_controller
+)
+
 ament_package()
