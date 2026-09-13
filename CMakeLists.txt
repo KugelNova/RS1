@@ -32,4 +32,19 @@ install(
   RENAME autonomous_controller
 )
 
+
+install(
+  PROGRAMS
+    scripts/terrain_scanner.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME terrain_scanner
+)
+
+install(
+  PROGRAMS
+    scripts/full_flight_path.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME full_flight_path
+)
+
 ament_package()
