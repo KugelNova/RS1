@@ -1,0 +1,207 @@
+<?xml version="1.0"?>
+<robot name="parrot" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:arg name="laser_visual"  default="false" />
+  <xacro:arg name="camera_visual" default="false"/>
+  <xacro:arg name="imu_visual"    default="false"/>
+  <xacro:arg name="gz_model_name" default="parrot"/>
+  <xacro:property name="gz_model_name" value="$(arg gz_model_name)"/>
+
+  <gazebo reference="${prefix}imu_link">
+    <turnGravityOff>true</turnGravityOff>
+    <sensor type="imu" name="${prefix}imu">
+      <always_on>true</always_on>
+      <visualize>$(arg imu_visual)</visualize>
+      <update_rate>100</update_rate>
+      <topic>model/${gz_model_name}/imu</topic>
+      <gz_frame_id>${prefix}imu_link</gz_frame_id>
+      <imu>
+        <angular_velocity>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+              <bias_mean>0.0000075</bias_mean>
+              <bias_stddev>0.0000008</bias_stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+              <bias_mean>0.0000075</bias_mean>
+              <bias_stddev>0.0000008</bias_stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>2e-4</stddev>
+              <bias_mean>0.0000075</bias_mean>
+              <bias_stddev>0.0000008</bias_stddev>
+            </noise>
+          </z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+              <bias_mean>0.1</bias_mean>
+              <bias_stddev>0.001</bias_stddev>
+            </noise>
+          </x>
+          <y>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+              <bias_mean>0.1</bias_mean>
+              <bias_stddev>0.001</bias_stddev>
+            </noise>
+          </y>
+          <z>
+            <noise type="gaussian">
+              <mean>0.0</mean>
+              <stddev>1.7e-2</stddev>
+              <bias_mean>0.1</bias_mean>
+              <bias_stddev>0.001</bias_stddev>
+            </noise>
+          </z>
+        </linear_acceleration>
+      </imu>
+      <plugin
+        filename="ignition-gazebo-imu-system"
+        name="ignition::gazebo::systems::Imu">
+      </plugin>
+    </sensor>
+    <material>Gazebo/Grey</material>
+  </gazebo>
+ 
+  <!-- Move base velocity controller -->
+  <gazebo>
+    <plugin
+      filename="ignition-gazebo-velocity-control-system"
+      name="ignition::gazebo::systems::VelocityControl">
+      <topic>model/${gz_model_name}/cmd_vel</topic>
+    </plugin>
+  </gazebo>
+
+  <!-- Publish odometry -->
+  <gazebo>
+    <plugin
+      filename="ignition-gazebo-odometry-publisher-system"
+      name="ignition::gazebo::systems::OdometryPublisher">
+      <topic>model/${gz_model_name}/odometry</topic>
+      <odom_publish_frequency>20</odom_publish_frequency>
+      <odom_frame>${prefix}odom</odom_frame>
+      <robot_base_frame>${prefix}base_link</robot_base_frame>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin
+      filename="ignition-gazebo-joint-state-publisher-system"
+      name="ignition::gazebo::systems::JointStatePublisher">
+      <topic>model/${gz_model_name}/joint_states</topic>
+    </plugin>
+  </gazebo>
+
+  <gazebo reference="${prefix}base_scan">
+    <turnGravityOff>true</turnGravityOff>
+    <material>Gazebo/FlatBlack</material>
+    <sensor type="gpu_lidar" name="${prefix}lidar">
+      <pose relative_to='${prefix}base_scan'>0 0 0 0 0 0</pose>
+      <visualize>$(arg laser_visual)</visualize>
+      <topic>model/${gz_model_name}/scan</topic>
+      <update_rate>3</update_rate>
+      <gz_frame_id>${prefix}base_scan</gz_frame_id>
+      <ray>
+        <scan>
+          <horizontal>
+            <samples>360</samples>
+            <resolution>1</resolution>
+            <min_angle>0.0</min_angle>
+            <max_angle>6.28319</max_angle>
+          </horizontal>
+        </scan>
+        <range>
+          <min>0.2</min>
+          <max>40</max>
+          <resolution>0.015</resolution>
+        </range>
+        <noise>
+          <type>gaussian</type>
+          <mean>0.0</mean>
+          <stddev>0.01</stddev>
+        </noise>
+      </ray>
+      <always_on>true</always_on>
+    </sensor>
+  </gazebo>
+
+  <gazebo reference="${prefix}camera_link">
+    <turnGravityOff>true</turnGravityOff>
+    <sensor name="${prefix}rgbd_camera" type="rgbd_camera">
+      <camera>
+        <horizontal_fov>2.0944</horizontal_fov>
+        <image>
+          <width>720</width>
+          <height>480</height>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>40</far>
+        </clip>
+        <depth_camera>
+          <clip>
+            <near>0.4</near>
+            <far>10</far>
+          </clip>
+        </depth_camera>
+      </camera>
+      <always_on>1</always_on>
+      <update_rate>3</update_rate>
+      <visualize>$(arg camera_visual)</visualize>
+      <topic>model/${gz_model_name}/camera</topic>
+      <gz_frame_id>${prefix}camera_link</gz_frame_id>
+    </sensor>
+  </gazebo>
+
+ <!-- Gazebo Thermal Sensor Tag -->
+  <gazebo reference="${prefix}thermal_camera_link">
+    <sensor name="${prefix}thermal_camera" type="thermal">
+      <always_on>true</always_on>
+      <update_rate>10</update_rate>
+      <topic>/model/${gz_model_name}/camera/thermal_image</topic>
+      <gz_frame_id>${prefix}thermal_camera_link</gz_frame_id>
+      <camera>
+        <horizontal_fov>1.047</horizontal_fov>
+        <image>
+          <width>320</width>
+          <height>240</height>
+          <format>L8</format>
+        </image>
+        <clip>
+          <near>0.1</near>
+          <far>100</far>
+        </clip>
+      </camera>
+     
+     <!--
+     <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>295.0</temperature>
+        --> <!-- Range resolution limits -->
+        <!--<min_temp>280.0</min_temp>
+        <max_temp>400.0</max_temp>
+      </plugin>
+      -->
+
+      <plugin filename="ignition-gazebo-thermal-sensor-system" name="ignition::gazebo::systems::ThermalSensor">
+        <min_temp>250.0</min_temp>
+        <max_temp>400.0</max_temp>
+        <resolution>1.47</resolution>
+      </plugin>   
+
+    </sensor>
+  </gazebo>
+
+</robot>
