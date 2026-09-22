@@ -94,6 +94,7 @@
       <odom_publish_frequency>20</odom_publish_frequency>
       <odom_frame>${prefix}odom</odom_frame>
       <robot_base_frame>${prefix}base_link</robot_base_frame>
+      <dimensions>3</dimensions>
     </plugin>
   </gazebo>
 
@@ -174,7 +175,7 @@
       <topic>/model/${gz_model_name}/camera/thermal_image</topic>
       <gz_frame_id>${prefix}thermal_camera_link</gz_frame_id>
       <camera>
-        <horizontal_fov>1.047</horizontal_fov>
+        <horizontal_fov>2.0944</horizontal_fov>
         <image>
           <width>320</width>
           <height>240</height>
