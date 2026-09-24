@@ -362,6 +362,17 @@ def generate_launch_description():
         spawn_delay=6.0,
     )
 
+    # Start the thermal / IR rescue-target detector whenever the Parrot is enabled.
+    ld.add_action(Node(
+        package='41068_ignition_bringup',
+        executable='thermal_detector',
+        namespace='parrot1',
+        name='thermal_detector',
+        output='screen',
+        parameters=[{'use_sim_time': use_sim_time}],
+        condition=_if_true('parrot'),
+    ))
+
     add_navigation_instance(
         ld,
         pkg_path=pkg_path,
