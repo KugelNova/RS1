@@ -1,0 +1,106 @@
+[0.191s] DEBUG:colcon:Command line arguments: ['/usr/bin/colcon', 'build', '--packages-select', '41068_ignition_bringup']
+[0.191s] DEBUG:colcon:Parsed command line arguments: Namespace(log_base=None, log_level=None, verb_name='build', build_base='build', install_base='install', merge_install=False, symlink_install=False, test_result_base=None, continue_on_error=False, executor='parallel', parallel_workers=4, event_handlers=None, ignore_user_meta=False, metas=['./colcon.meta'], base_paths=['.'], packages_ignore=None, packages_ignore_regex=None, paths=None, packages_up_to=None, packages_up_to_regex=None, packages_above=None, packages_above_and_dependencies=None, packages_above_depth=None, packages_select_by_dep=None, packages_skip_by_dep=None, packages_skip_up_to=None, packages_select_build_failed=False, packages_skip_build_finished=False, packages_select_test_failures=False, packages_skip_test_passed=False, packages_select=['41068_ignition_bringup'], packages_skip=None, packages_select_regex=None, packages_skip_regex=None, packages_start=None, packages_end=None, cmake_args=None, cmake_target=None, cmake_target_skip_unavailable=False, cmake_clean_cache=False, cmake_clean_first=False, cmake_force_configure=False, ament_cmake_args=None, catkin_cmake_args=None, catkin_skip_building_tests=False, mixin_files=None, mixin=None, verb_parser=<colcon_mixin.mixin.mixin_argument.MixinArgumentDecorator object at 0x7b2b67748b50>, verb_extension=<colcon_core.verb.build.BuildVerb object at 0x7b2b67845de0>, main=<bound method BuildVerb.main of <colcon_core.verb.build.BuildVerb object at 0x7b2b67845de0>>, mixin_verb=('build',))
+[0.454s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) check parameters
+[0.455s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/Gazebo.meta'
+[0.456s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/fastdds.meta'
+[0.457s] INFO:colcon.colcon_metadata.package_discovery.colcon_meta:Using configuration from '/root/.colcon/metadata/default/fastrtps.meta'
+[0.457s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) check parameters
+[0.457s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) check parameters
+[0.457s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) check parameters
+[0.457s] Level 1:colcon.colcon_core.package_discovery:discover_packages(colcon_meta) discover
+[0.457s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) discover
+[0.457s] INFO:colcon.colcon_core.package_discovery:Crawling recursively for packages in '/root/ros2_ws/src'
+[0.457s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ignore', 'ignore_ament_install']
+[0.457s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore'
+[0.457s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ignore_ament_install'
+[0.458s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_pkg']
+[0.458s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_pkg'
+[0.458s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['colcon_meta']
+[0.458s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'colcon_meta'
+[0.458s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extensions ['ros']
+[0.458s] Level 1:colcon.colcon_core.package_identification:_identify(.) by extension 'ros'
+[0.477s] DEBUG:colcon.colcon_core.package_identification:Package '.' with type 'ros.ament_cmake' and name '41068_ignition_bringup'
+[0.477s] Level 1:colcon.colcon_core.package_discovery:discover_packages(recursive) using defaults
+[0.477s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) discover
+[0.477s] Level 1:colcon.colcon_core.package_discovery:discover_packages(ignore) using defaults
+[0.477s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) discover
+[0.477s] Level 1:colcon.colcon_core.package_discovery:discover_packages(path) using defaults
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'cmake_args' from command line to 'None'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'cmake_target' from command line to 'None'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'cmake_target_skip_unavailable' from command line to 'False'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'cmake_clean_cache' from command line to 'False'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'cmake_clean_first' from command line to 'False'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'cmake_force_configure' from command line to 'False'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'ament_cmake_args' from command line to 'None'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'catkin_cmake_args' from command line to 'None'
+[0.529s] Level 5:colcon.colcon_core.verb:set package '41068_ignition_bringup' build argument 'catkin_skip_building_tests' from command line to 'False'
+[0.529s] DEBUG:colcon.colcon_core.verb:Building package '41068_ignition_bringup' with the following arguments: {'ament_cmake_args': None, 'build_base': '/root/ros2_ws/src/build/41068_ignition_bringup', 'catkin_cmake_args': None, 'catkin_skip_building_tests': False, 'cmake_args': None, 'cmake_clean_cache': False, 'cmake_clean_first': False, 'cmake_force_configure': False, 'cmake_target': None, 'cmake_target_skip_unavailable': False, 'install_base': '/root/ros2_ws/src/install/41068_ignition_bringup', 'merge_install': False, 'path': '/root/ros2_ws/src', 'symlink_install': False, 'test_result_base': None}
+[0.530s] INFO:colcon.colcon_core.executor:Executing jobs using 'parallel' executor
+[0.531s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete
+[0.533s] INFO:colcon.colcon_ros.task.ament_cmake.build:Building ROS package in '/root/ros2_ws/src' with build type 'ament_cmake'
+[0.533s] INFO:colcon.colcon_cmake.task.cmake.build:Building CMake package in '/root/ros2_ws/src'
+[0.541s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_core.shell.bat': Not used on non-Windows systems
+[0.541s] INFO:colcon.colcon_core.shell:Skip shell extension 'powershell' for command environment: Not usable outside of PowerShell
+[0.541s] DEBUG:colcon.colcon_core.shell:Skip shell extension 'dsv' for command environment
+[0.560s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/root/ros2_ws/src/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake /root/ros2_ws/src -DCMAKE_INSTALL_PREFIX=/root/ros2_ws/src/install/41068_ignition_bringup
+[2.325s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/root/ros2_ws/src/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake /root/ros2_ws/src -DCMAKE_INSTALL_PREFIX=/root/ros2_ws/src/install/41068_ignition_bringup
+[2.327s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/root/ros2_ws/src/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --build /root/ros2_ws/src/build/41068_ignition_bringup -- -j4 -l4
+[2.389s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/root/ros2_ws/src/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --build /root/ros2_ws/src/build/41068_ignition_bringup -- -j4 -l4
+[2.403s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoking command in '/root/ros2_ws/src/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --install /root/ros2_ws/src/build/41068_ignition_bringup
+[2.509s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(41068_ignition_bringup)
+[2.510s] DEBUG:colcon.colcon_core.event_handler.log_command:Invoked command in '/root/ros2_ws/src/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --install /root/ros2_ws/src/build/41068_ignition_bringup
+[2.513s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup' for CMake module files
+[2.514s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup' for CMake config files
+[2.514s] Level 1:colcon.colcon_core.shell:create_environment_hook('41068_ignition_bringup', 'cmake_prefix_path')
+[2.514s] INFO:colcon.colcon_core.shell:Creating environment hook '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/hook/cmake_prefix_path.ps1'
+[2.515s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/hook/cmake_prefix_path.dsv'
+[2.516s] INFO:colcon.colcon_core.shell:Creating environment hook '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/hook/cmake_prefix_path.sh'
+[2.517s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/lib'
+[2.518s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/bin'
+[2.518s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/lib/pkgconfig/41068_ignition_bringup.pc'
+[2.522s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/lib/python3.10/site-packages'
+[2.523s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/bin'
+[2.524s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.ps1'
+[2.526s] INFO:colcon.colcon_core.shell:Creating package descriptor '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.dsv'
+[2.528s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.sh'
+[2.530s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.bash'
+[2.532s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.zsh'
+[2.534s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/root/ros2_ws/src/install/41068_ignition_bringup/share/colcon-core/packages/41068_ignition_bringup)
+[2.537s] Level 1:colcon.colcon_core.environment:create_environment_scripts_only(41068_ignition_bringup)
+[2.538s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup' for CMake module files
+[2.542s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup' for CMake config files
+[2.545s] Level 1:colcon.colcon_core.shell:create_environment_hook('41068_ignition_bringup', 'cmake_prefix_path')
+[2.546s] INFO:colcon.colcon_core.shell:Creating environment hook '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/hook/cmake_prefix_path.ps1'
+[2.548s] INFO:colcon.colcon_core.shell:Creating environment descriptor '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/hook/cmake_prefix_path.dsv'
+[2.550s] INFO:colcon.colcon_core.shell:Creating environment hook '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/hook/cmake_prefix_path.sh'
+[2.553s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/lib'
+[2.554s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/bin'
+[2.554s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/lib/pkgconfig/41068_ignition_bringup.pc'
+[2.555s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/lib/python3.10/site-packages'
+[2.556s] Level 1:colcon.colcon_core.environment:checking '/root/ros2_ws/src/install/41068_ignition_bringup/bin'
+[2.556s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.ps1'
+[2.558s] INFO:colcon.colcon_core.shell:Creating package descriptor '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.dsv'
+[2.559s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.sh'
+[2.559s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.bash'
+[2.560s] INFO:colcon.colcon_core.shell:Creating package script '/root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.zsh'
+[2.561s] Level 1:colcon.colcon_core.environment:create_file_with_runtime_dependencies(/root/ros2_ws/src/install/41068_ignition_bringup/share/colcon-core/packages/41068_ignition_bringup)
+[2.562s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:closing loop
+[2.562s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:loop closed
+[2.562s] DEBUG:colcon.colcon_parallel_executor.executor.parallel:run_until_complete finished with '0'
+[2.562s] DEBUG:colcon.colcon_core.event_reactor:joining thread
+[2.570s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.notify_send': Could not find 'notify-send'
+[2.571s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.terminal_notifier': Not used on non-Darwin systems
+[2.571s] INFO:colcon.colcon_core.plugin_system:Skipping extension 'colcon_notification.desktop_notification.win32': Not used on non-Windows systems
+[2.571s] INFO:colcon.colcon_notification.desktop_notification:Sending desktop notification using 'notify2'
+[2.576s] DEBUG:colcon.colcon_notification.desktop_notification.notify2:Failed to initialize notify2: org.freedesktop.DBus.Error.Spawn.ExecFailed: /usr/bin/dbus-launch terminated abnormally without any error message
+[2.576s] DEBUG:colcon.colcon_core.event_reactor:joined thread
+[2.578s] INFO:colcon.colcon_core.shell:Creating prefix script '/root/ros2_ws/src/install/local_setup.ps1'
+[2.580s] INFO:colcon.colcon_core.shell:Creating prefix util module '/root/ros2_ws/src/install/_local_setup_util_ps1.py'
+[2.585s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/root/ros2_ws/src/install/setup.ps1'
+[2.587s] INFO:colcon.colcon_core.shell:Creating prefix script '/root/ros2_ws/src/install/local_setup.sh'
+[2.588s] INFO:colcon.colcon_core.shell:Creating prefix util module '/root/ros2_ws/src/install/_local_setup_util_sh.py'
+[2.589s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/root/ros2_ws/src/install/setup.sh'
+[2.590s] INFO:colcon.colcon_core.shell:Creating prefix script '/root/ros2_ws/src/install/local_setup.bash'
+[2.591s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/root/ros2_ws/src/install/setup.bash'
+[2.593s] INFO:colcon.colcon_core.shell:Creating prefix script '/root/ros2_ws/src/install/local_setup.zsh'
+[2.593s] INFO:colcon.colcon_core.shell:Creating prefix chain script '/root/ros2_ws/src/install/setup.zsh'

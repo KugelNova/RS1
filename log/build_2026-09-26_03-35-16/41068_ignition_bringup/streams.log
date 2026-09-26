@@ -1,0 +1,163 @@
+[0.026s] Invoking command in '/root/ros2_ws/src/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake /root/ros2_ws/src -DCMAKE_INSTALL_PREFIX=/root/ros2_ws/src/install/41068_ignition_bringup
+[0.210s] -- The C compiler identification is GNU 11.4.0
+[0.351s] -- The CXX compiler identification is GNU 11.4.0
+[0.371s] -- Detecting C compiler ABI info
+[0.471s] -- Detecting C compiler ABI info - done
+[0.481s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.484s] -- Detecting C compile features
+[0.485s] -- Detecting C compile features - done
+[0.490s] -- Detecting CXX compiler ABI info
+[0.612s] -- Detecting CXX compiler ABI info - done
+[0.625s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.625s] -- Detecting CXX compile features
+[0.627s] -- Detecting CXX compile features - done
+[0.651s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.889s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[1.071s] -- Found ros_gz_interfaces: 0.244.26 (/opt/ros/humble/share/ros_gz_interfaces/cmake)
+[1.170s] -- Found rosidl_generator_c: 3.1.9 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[1.183s] -- Found rosidl_adapter: 3.1.9 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[1.207s] -- Found rosidl_generator_cpp: 3.1.9 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[1.239s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.274s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.430s] -- Found ament_lint_auto: 0.12.15 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[1.510s] WARNING: Package name "41068_ignition_bringup" does not follow the naming conventions. It should start with a lower case letter and only contain lower case letters, digits, underscores, and dashes.
+[1.577s] -- Added test 'copyright' to check source files copyright and LICENSE
+[1.648s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[1.648s] -- Configured cppcheck include dirs: 
+[1.649s] -- Configured cppcheck exclude dirs and/or files: 
+[1.691s] -- Added test 'cpplint' to check C / C++ code against the Google style
+[1.691s] -- Configured cpplint exclude dirs and/or files: 
+[1.697s] -- Added test 'flake8' to check Python code syntax and style conventions
+[1.712s] -- Added test 'lint_cmake' to check CMake code style
+[1.719s] -- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+[1.762s] -- Added test 'uncrustify' to check C / C++ code style
+[1.763s] -- Configured uncrustify additional arguments: 
+[1.769s] -- Added test 'xmllint' to check XML markup files
+[1.772s] -- Configuring done
+[1.778s] -- Generating done
+[1.781s] -- Build files have been written to: /root/ros2_ws/src/build/41068_ignition_bringup
+[1.792s] Invoked command in '/root/ros2_ws/src/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake /root/ros2_ws/src -DCMAKE_INSTALL_PREFIX=/root/ros2_ws/src/install/41068_ignition_bringup
+[1.794s] Invoking command in '/root/ros2_ws/src/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --build /root/ros2_ws/src/build/41068_ignition_bringup -- -j4 -l4
+[1.856s] Invoked command in '/root/ros2_ws/src/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --build /root/ros2_ws/src/build/41068_ignition_bringup -- -j4 -l4
+[1.869s] Invoking command in '/root/ros2_ws/src/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --install /root/ros2_ws/src/build/41068_ignition_bringup
+[1.879s] -- Install configuration: ""
+[1.879s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config
+[1.879s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/ignition_server.config
+[1.880s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/nav2_params_husky1.yaml
+[1.880s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_parrot1 copy.yaml
+[1.880s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/41068.rviz
+[1.881s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/nav2_params_parrot1.yaml
+[1.881s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_husky1.yaml
+[1.882s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/slam_params_husky1.yaml
+[1.882s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/nav2_params.yaml
+[1.882s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/slam_params.yaml
+[1.883s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_parrot1.yaml
+[1.883s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_parrot.yaml
+[1.883s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_husky.yaml
+[1.884s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/41068_husky1.rviz
+[1.884s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/slam_params_parrot1.yaml
+[1.884s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/robot_localization_parrot1.yaml
+[1.884s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/robot_localization_husky1.yaml
+[1.885s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_clock.yaml
+[1.885s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/41068_parrot1.rviz
+[1.885s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/config/robot_localization.yaml
+[1.886s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch
+[1.886s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_ignition_parrot.launch.py
+[1.886s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_dynamic_world_demo.launch.py
+[1.887s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_ignition.launch.py
+[1.887s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_autonomy_demo.launch.py
+[1.887s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_navigation.launch.py
+[1.888s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_ignition_husky.launch.py
+[1.888s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__
+[1.888s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_dynamic_world_demo.launch.cpython-313.pyc
+[1.889s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_ignition_parrot.launch.cpython-313.pyc
+[1.889s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_ignition_husky.launch.cpython-313.pyc
+[1.889s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/test_gazebo.launch.cpython-312.pyc
+[1.890s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_ignition.launch.cpython-313.pyc
+[1.890s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_navigation.launch.cpython-313.pyc
+[1.890s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_autonomy_demo.launch.cpython-313.pyc
+[1.891s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/rescue_drone_node.cpython-310.pyc
+[1.891s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models
+[1.891s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane
+[1.892s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/model.sdf
+[1.892s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/model.config
+[1.892s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/materials
+[1.892s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/materials/textures
+[1.892s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/materials/textures/empty_grass.png
+[1.896s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane
+[1.896s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/model.sdf
+[1.896s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/model.config
+[1.897s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials
+[1.897s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures
+[1.897s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/empty_grass.png
+[1.904s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/leaf_litter.png
+[1.912s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/forest_overhead.png
+[1.922s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/forest_overhead_plain.png
+[1.927s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall
+[1.928s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/model.sdf
+[1.928s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/model.config
+[1.928s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials
+[1.928s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials/textures
+[1.928s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials/textures/forest_wall.png
+[1.934s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials/textures/forest_wall_transparent.png
+[1.939s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials/textures/forest_wall_transparent_small.png
+[1.939s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky
+[1.940s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/wheel.urdf.xacro
+[1.940s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/common_properties.urdf.xacro
+[1.940s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes
+[1.940s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/wheel.dae
+[1.945s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/jpl04_arch_nosensor.stl
+[1.946s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/base_link.dae
+[1.947s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/top_chassis.dae
+[1.951s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/bumper.dae
+[1.952s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/top_plate.dae
+[1.953s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/husky.gazebo.xacro
+[1.953s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/husky.urdf.xacro
+[1.954s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds
+[1.954s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/simple_trees.sdf
+[1.954s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/simple_trees._KugelNova.sdf
+[1.954s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/rescue_forest copy.sdf
+[1.955s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/simple_trees copy.sdf
+[1.955s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/rescue_forest copy 2.sdf
+[1.956s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/rescue_forest.sdf
+[1.957s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/large_demo.sdf
+[1.957s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/rescue_forest_before_200.sdf
+[1.958s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot
+[1.958s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/parrot.gazebo copy.xacro
+[1.958s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/model.sdf
+[1.959s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/parrot.gazebo.xacro
+[1.959s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/model.config
+[1.959s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/parrot.urdf.xacro
+[1.959s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails
+[1.960s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/5.png
+[1.960s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/1.png
+[1.961s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/4.png
+[1.961s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/3.png
+[1.961s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/2.png
+[1.962s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/common_properties.urdf.xacro
+[1.962s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes
+[1.962s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_fr.dae
+[1.963s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_fl.dae
+[1.963s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/hull.dae
+[1.966s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_rr.dae
+[1.967s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_rl.dae
+[1.967s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/parrot.urdf copy_Include_Thermal_v1.xacro
+[1.968s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/lib/41068_ignition_bringup/dynamic_world_demo.py
+[1.968s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/lib/41068_ignition_bringup/basic_autonomy_demo.py
+[1.969s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/lib/41068_ignition_bringup/autonomous_controller
+[1.970s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/ament_index/resource_index/package_run_dependencies/41068_ignition_bringup
+[1.970s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/ament_index/resource_index/parent_prefix_path/41068_ignition_bringup
+[1.970s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/ament_prefix_path.sh
+[1.971s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/ament_prefix_path.dsv
+[1.971s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/path.sh
+[1.971s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/path.dsv
+[1.971s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.bash
+[1.972s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.sh
+[1.972s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.zsh
+[1.972s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.dsv
+[1.972s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.dsv
+[1.973s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/ament_index/resource_index/packages/41068_ignition_bringup
+[1.973s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/cmake/41068_ignition_bringupConfig.cmake
+[1.973s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/cmake/41068_ignition_bringupConfig-version.cmake
+[1.973s] -- Installing: /root/ros2_ws/src/install/41068_ignition_bringup/share/41068_ignition_bringup/package.xml
+[1.976s] Invoked command in '/root/ros2_ws/src/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/humble PS1=\[\033[01;32m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]$ /usr/bin/cmake --install /root/ros2_ws/src/build/41068_ignition_bringup

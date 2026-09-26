@@ -1,0 +1,243 @@
+<?xml version="1.0"?>
+<sdf version='1.8'>
+  <world name="simple_trees">
+
+    <!-- Essential World Systems -->
+    <plugin
+      filename="ignition-gazebo-physics-system"
+      name="ignition::gazebo::systems::Physics">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-user-commands-system"
+      name="ignition::gazebo::systems::UserCommands">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-scene-broadcaster-system"
+      name="ignition::gazebo::systems::SceneBroadcaster">
+    </plugin>
+
+    <!-- REQUIRED FOR ALL CAMERAS & THERMAL SENSORS -->
+    <plugin
+      filename="ignition-gazebo-sensors-system"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <!-- World Thermal System with Default Ambient Temp (293.15 K) -->
+    <plugin
+      filename="ignition-gazebo-thermal-system"
+      name="ignition::gazebo::systems::Thermal">
+      <temperature>293.15</temperature>
+    </plugin>
+
+    <!-- Basic world setup -->
+    <light name="sun" type="directional">
+      <cast_shadows>1</cast_shadows>
+      <pose>0 0 10 0 -0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+    
+    <gravity>0 0 -9.81</gravity>
+    <magnetic_field>6e-06 2.3e-05 -4.2e-05</magnetic_field>
+    <atmosphere type="adiabatic"/>
+    
+    <physics name="default_physics" type="ignored">
+      <max_step_size>0.01</max_step_size>
+      <real_time_factor>1</real_time_factor>
+      <real_time_update_rate>100</real_time_update_rate>
+    </physics>
+
+    <scene>
+      <ambient>1.0 1.0 1.0</ambient>
+      <background>0.8 0.8 0.8</background>
+      <shadows>1</shadows>
+    </scene>
+
+    
+
+    <!-- Spherical coordinates -->
+    <spherical_coordinates>
+      <latitude_deg>0.0</latitude_deg>
+      <longitude_deg>0.0</longitude_deg>
+      <elevation>10.0</elevation>
+      <heading_deg>0</heading_deg>
+      <surface_model>EARTH_WGS84</surface_model>
+    </spherical_coordinates>
+
+    <!-- Ground plane -->
+    <include>
+      <uri>model://grass_plane</uri>
+      <name>grass_plane</name>
+      <pose>0 0 0 0 0 0</pose>
+    </include>
+
+    <!-- Oak tree -->
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Oak%20tree</uri>
+      <name>oak1</name>
+      <pose>0 3.0 0 0 0 0</pose>
+    </include>
+    
+    <!-- Pine tree -->
+    <include>
+      <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Pine%20tree</uri>
+      <name>pine1</name>
+      <pose>5.0 0.0 0 0 0 0</pose>
+    </include>
+
+    <!-- Warm object -->
+    <model name="warm_box">
+      <static>true</static>
+      <pose>2 -2 0.5 0 0 0</pose>
+      <link name="link">
+       
+        
+        <visual name="visual">
+          <geometry>
+            <box><size>1 1 1</size></box>
+          </geometry>
+           <!-- Thermal plugin belongs inside <link> -->
+          <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+            <temperature>273.15</temperature>
+          </plugin>
+        </visual>
+        
+        <collision name="collision">
+          <geometry>
+            <box><size>1 1 1</size></box>
+          </geometry>
+        </collision>
+      </link>
+    </model>
+
+<!-- Realistic Human Model with Thermal Proxy -->
+<model name="thermal_human">
+  <static>true</static>
+  <pose>0 -2 0 0 0 0</pose>
+  
+  <link name="link">
+    <!-- 1. Realistic Visual Mesh for RGB Camera & GUI -->
+    <visual name="visual_mesh">
+      <pose>0 0 0 0 0 -1.57</pose>
+      <geometry>
+        <mesh>
+          <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+        </mesh>
+      </geometry>
+    </visual>
+
+    <!-- 2. Thermal Proxy Visual (Assigns the 32°C heat signature for the Thermal Camera) -->
+    <visual name="thermal_proxy">
+      <pose>0 0 0 0 0 -1.57</pose>
+      <geometry>
+          <mesh>
+            <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+            <scale>1.02 1.02 1.02</scale>
+          </mesh>
+      </geometry>
+      <!-- Hides the cylinder from the GUI and RGB cameras -->
+      <transparency>1.0</transparency>
+      <cast_shadows>false</cast_shadows>
+
+
+
+      <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>305.15</temperature>
+      </plugin>
+    </visual>
+
+    <collision name="collision">
+      <pose>0 0 0.85 0 0 0</pose>
+      <geometry>
+        <cylinder><radius>0.3</radius><length>1.7</length></cylinder>
+      </geometry>
+    </collision>
+  </link>
+</model>
+
+<model name="thermal_human_2">
+  <!-- Placed a few meters away from the origin -->
+  <pose>4 -3 0 0 0 1.57</pose>
+  <static>true</static>
+  
+  <link name="link">
+    <!-- 1. Realistic Visual Mesh -->
+    <visual name="visual">
+      <geometry>
+        <mesh>
+          <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+        </mesh>
+      </geometry>
+    </visual>
+    
+    <!-- 2. Scaled Thermal Proxy (1.02x larger to prevent Z-fighting) -->
+    <visual name="thermal_proxy">
+      <geometry>
+        <mesh>
+          <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+          <scale>1.02 1.02 1.02</scale>
+        </mesh>
+      </geometry>
+      <transparency>1.0</transparency>
+      <cast_shadows>false</cast_shadows>
+      <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>305.15</temperature>
+      </plugin>
+    </visual>
+  </link>
+</model>
+
+
+
+    <!-- Burning House -->
+<model name="burning_house">
+  <static>true</static>
+  <pose>-2 -2 0 0 0 0</pose>
+  
+  <!-- House Base (1000 K) -->
+  <link name="house_base">
+    <pose>0 0 1.0 0 0 0</pose>
+    <visual name="base_visual">
+      <geometry><box><size>2 2 2</size></box></geometry>
+      <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>1000.0</temperature>
+      </plugin>
+    </visual>
+    <collision name="base_collision">
+      <geometry><box><size>2 2 2</size></box></geometry>
+    </collision>
+  </link>
+
+  <!-- House Roof (1000 K) -->
+  <link name="house_roof">
+    <pose>0 0 2.25 0 0 0</pose>
+    <visual name="roof_visual">
+      <geometry><box><size>2.2 2.2 0.5</size></box></geometry>
+      <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>1000.0</temperature>
+      </plugin>
+    </visual>
+  </link>
+
+  <!-- Chimney (1200 K - Hottest Point) -->
+  <link name="chimney">
+    <pose>0.6 0 2.8 0 0 0</pose>
+    <visual name="chimney_visual">
+      <geometry><box><size>0.4 0.4 1.0</size></box></geometry>
+      <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>1200.0</temperature>
+      </plugin>
+    </visual>
+  </link>
+</model>
+
+  </world>
+</sdf>
