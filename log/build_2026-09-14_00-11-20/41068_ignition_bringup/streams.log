@@ -1,0 +1,138 @@
+[0.023s] Invoking command in '/home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/desktop_fj3ree7/ros2_ws/install/racing_track:/opt/ros/humble /usr/bin/cmake /home/desktop_fj3ree7/41068_ws/src/RS1 -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup
+[0.229s] -- The C compiler identification is GNU 11.4.0
+[0.497s] -- The CXX compiler identification is GNU 11.4.0
+[0.600s] -- Detecting C compiler ABI info
+[0.701s] -- Detecting C compiler ABI info - done
+[0.708s] -- Check for working C compiler: /usr/bin/cc - skipped
+[0.710s] -- Detecting C compile features
+[0.711s] -- Detecting C compile features - done
+[0.715s] -- Detecting CXX compiler ABI info
+[0.815s] -- Detecting CXX compiler ABI info - done
+[0.820s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[0.820s] -- Detecting CXX compile features
+[0.821s] -- Detecting CXX compile features - done
+[0.832s] -- Found ament_cmake: 1.3.14 (/opt/ros/humble/share/ament_cmake/cmake)
+[0.968s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter 
+[1.048s] -- Override CMake install command with custom implementation using symlinks instead of copying resources
+[1.105s] -- Found ros_ign_interfaces: 0.244.25 (/opt/ros/humble/share/ros_ign_interfaces/cmake)
+[1.207s] -- Found rosidl_generator_c: 3.1.9 (/opt/ros/humble/share/rosidl_generator_c/cmake)
+[1.218s] -- Found rosidl_adapter: 3.1.9 (/opt/ros/humble/share/rosidl_adapter/cmake)
+[1.235s] -- Found rosidl_generator_cpp: 3.1.9 (/opt/ros/humble/share/rosidl_generator_cpp/cmake)
+[1.264s] -- Using all available rosidl_typesupport_c: rosidl_typesupport_fastrtps_c;rosidl_typesupport_introspection_c
+[1.288s] -- Using all available rosidl_typesupport_cpp: rosidl_typesupport_fastrtps_cpp;rosidl_typesupport_introspection_cpp
+[1.448s] -- Found ament_lint_auto: 0.12.15 (/opt/ros/humble/share/ament_lint_auto/cmake)
+[1.492s] WARNING: Package name "41068_ignition_bringup" does not follow the naming conventions. It should start with a lower case letter and only contain lower case letters, digits, underscores, and dashes.
+[1.547s] -- Added test 'copyright' to check source files copyright and LICENSE
+[1.555s] -- Added test 'cppcheck' to perform static code analysis on C / C++ code
+[1.555s] -- Configured cppcheck include dirs: 
+[1.555s] -- Configured cppcheck exclude dirs and/or files: 
+[1.562s] -- Added test 'cpplint' to check C / C++ code against the Google style
+[1.562s] -- Configured cpplint exclude dirs and/or files: 
+[1.565s] -- Added test 'flake8' to check Python code syntax and style conventions
+[1.568s] -- Added test 'lint_cmake' to check CMake code style
+[1.570s] -- Added test 'pep257' to check Python code against some of the docstring style conventions in PEP 257
+[1.577s] -- Added test 'uncrustify' to check C / C++ code style
+[1.577s] -- Configured uncrustify additional arguments: 
+[1.579s] -- Added test 'xmllint' to check XML markup files
+[1.583s] -- Configuring done
+[1.588s] -- Generating done
+[1.590s] -- Build files have been written to: /home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup
+[1.598s] Invoked command in '/home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/desktop_fj3ree7/ros2_ws/install/racing_track:/opt/ros/humble /usr/bin/cmake /home/desktop_fj3ree7/41068_ws/src/RS1 -DAMENT_CMAKE_SYMLINK_INSTALL=1 -DCMAKE_INSTALL_PREFIX=/home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup
+[1.599s] Invoking command in '/home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/desktop_fj3ree7/ros2_ws/install/racing_track:/opt/ros/humble /usr/bin/cmake --build /home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup -- -j8 -l8
+[1.631s] Invoked command in '/home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/desktop_fj3ree7/ros2_ws/install/racing_track:/opt/ros/humble /usr/bin/cmake --build /home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup -- -j8 -l8
+[1.640s] Invoking command in '/home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/desktop_fj3ree7/ros2_ws/install/racing_track:/opt/ros/humble /usr/bin/cmake --install /home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup
+[1.646s] -- Install configuration: ""
+[1.646s] -- Execute custom install script
+[1.647s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/41068.rviz
+[1.655s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/41068_husky1.rviz
+[1.662s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/41068_parrot1.rviz
+[1.669s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_clock.yaml
+[1.676s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_husky.yaml
+[1.683s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_husky1.yaml
+[1.691s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_parrot.yaml
+[1.700s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/gazebo_bridge_parrot1.yaml
+[1.707s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/ignition_server.config
+[1.716s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/nav2_params.yaml
+[1.724s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/nav2_params_husky1.yaml
+[1.731s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/nav2_params_parrot1.yaml
+[1.738s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/robot_localization.yaml
+[1.747s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/robot_localization_husky1.yaml
+[1.754s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/robot_localization_parrot1.yaml
+[1.762s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/slam_params.yaml
+[1.769s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/slam_params_husky1.yaml
+[1.776s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/config/slam_params_parrot1.yaml
+[1.784s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_autonomy_demo.launch.py
+[1.792s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_dynamic_world_demo.launch.py
+[1.799s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_ignition.launch.py
+[1.807s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_ignition_husky.launch.py
+[1.815s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_ignition_parrot.launch.py
+[1.824s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/41068_navigation.launch.py
+[1.832s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_autonomy_demo.launch.cpython-313.pyc
+[1.839s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_dynamic_world_demo.launch.cpython-313.pyc
+[1.846s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_ignition.launch.cpython-313.pyc
+[1.853s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_ignition_husky.launch.cpython-313.pyc
+[1.861s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_ignition_parrot.launch.cpython-313.pyc
+[1.868s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/launch/__pycache__/41068_navigation.launch.cpython-313.pyc
+[1.876s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/empty_grass.png
+[1.884s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/forest_overhead.png
+[1.891s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/forest_overhead_plain.png
+[1.899s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/materials/textures/leaf_litter.png
+[1.906s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/model.config
+[1.916s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_plane/model.sdf
+[1.925s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials/textures/forest_wall.png
+[1.933s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials/textures/forest_wall_transparent.png
+[1.942s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/materials/textures/forest_wall_transparent_small.png
+[1.951s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/model.config
+[1.961s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/forest_wall/model.sdf
+[1.972s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/materials/textures/empty_grass.png
+[1.980s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/model.config
+[1.987s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/models/grass_plane/model.sdf
+[1.995s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/common_properties.urdf.xacro
+[2.003s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/husky.gazebo.xacro
+[2.011s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/husky.urdf.xacro
+[2.020s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/base_link.dae
+[2.027s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/bumper.dae
+[2.035s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/jpl04_arch_nosensor.stl
+[2.043s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/top_chassis.dae
+[2.051s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/top_plate.dae
+[2.058s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/meshes/wheel.dae
+[2.066s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_husky/wheel.urdf.xacro
+[2.073s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/large_demo.sdf
+[2.081s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/rescue_forest.sdf
+[2.088s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/rescue_forest_before_200.sdf
+[2.095s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/rescue_forest_test.sdf
+[2.102s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/worlds/simple_trees.sdf
+[2.111s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/common_properties.urdf.xacro
+[2.121s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/hull.dae
+[2.132s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_fl.dae
+[2.140s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_fr.dae
+[2.147s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_rl.dae
+[2.155s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/meshes/propeller_rr.dae
+[2.162s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/model.config
+[2.170s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/model.sdf
+[2.177s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/parrot.gazebo.xacro
+[2.184s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/parrot.urdf.xacro
+[2.192s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/1.png
+[2.199s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/2.png
+[2.208s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/3.png
+[2.224s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/4.png
+[2.232s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/urdf_parrot/thumbnails/5.png
+[2.240s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/lib/41068_ignition_bringup/dynamic_world_demo.py
+[2.248s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/lib/41068_ignition_bringup/basic_autonomy_demo.py
+[2.255s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/ament_index/resource_index/package_run_dependencies/41068_ignition_bringup
+[2.263s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/ament_index/resource_index/parent_prefix_path/41068_ignition_bringup
+[2.271s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/ament_prefix_path.sh
+[2.279s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/ament_prefix_path.dsv
+[2.287s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/path.sh
+[2.295s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/environment/path.dsv
+[2.303s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.bash
+[2.311s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.sh
+[2.319s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.zsh
+[2.326s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/local_setup.dsv
+[2.333s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/package.dsv
+[2.341s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/ament_index/resource_index/packages/41068_ignition_bringup
+[2.348s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/cmake/41068_ignition_bringupConfig.cmake
+[2.356s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/cmake/41068_ignition_bringupConfig-version.cmake
+[2.363s] -- Symlinking: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/share/41068_ignition_bringup/package.xml
+[2.370s] -- Installing: /home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/lib/41068_ignition_bringup/autonomous_controller
+[2.373s] Invoked command in '/home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/home/desktop_fj3ree7/ros2_ws/install/racing_track:/opt/ros/humble /usr/bin/cmake --install /home/desktop_fj3ree7/41068_ws/src/RS1/build/41068_ignition_bringup

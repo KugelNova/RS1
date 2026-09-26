@@ -1,3 +1,59 @@
+_________________________________________________________
+Autonomous Rescue Drone Web Teleop & Detection Dashboard
+_________________________________________________________
+It is a web based user interface in the command centre to navigate the rescue drone inside the rescue forest to identify and detect humans based on Heat Signature. It provides real - time visualisation of RGB Camera, Lidar, and Thermal Sensor along with drone orientation and location. When it detects a human, it provides a alert in RED.
+
+HOW TO RUN THIS PROGRAM
+___________________________
+The Web App is using FLASK based web application so we need to add FLASK into our environment.
+
+
+1. PREREQUISITES & DEPENDENCIES
+------------------------------------------------------------
+(A) How to Install FLASK
+Ensure Flask and required image processing dependencies are installed:
+
+sudo apt update && sudo apt install -y python3-pip python3-opencv python3-numpy
+pip3 install flask
+
+Verify installation:
+python3 -c "import flask; print('Flask version:', flask.__version__)"
+
+
+2. HOW TO RUN
+------------------------------------------------------------
+Step 1a : In Terminal 1, launch the Gazebo simulation:
+cd ~/ros2_ws
+cd ~/41068_ws
+colcon build --packages-select RS1
+source install/setup.bash
+
+Step 1b : Run the program without Gazebo or RVIZ GUI.
+
+ros2 launch 41068_ignition_bringup 41068_ignition.launch.py husky:=false parrot:=true slam:=false nav2:=false rviz:=false world:=rescue_forest gui:=false
+
+Step 2: In Terminal 2, start the Flask web dashboard:
+cd ~/ros2_ws/src/<your_package_name>/scripts
+python3 dashboard_app.py
+
+
+3. ACCESSING THE INTERFACE
+------------------------------------------------------------
+Open a browser and navigate to:
+http://localhost:5000
+
+
+4. FEATURES
+------------------------------------------------------------
+- Camera Feeds: Live RGB camera, 2D LiDAR radar canvas, and normalized thermal imaging.
+- Flight Controls: Directional D-pad, altitude control, auto-leveling, and automated patrol patterns.
+- GPS Autopilot: Set X, Y, Z waypoints and navigation speed.
+- Target Detection: Autonomous thermal detection marks targets with green bounding boxes and broadcasts coordinate alerts to the dashboard banner.
+
+
+
+
+==============================================================================================================
 # 41068 Ignition Bringup
 
 Bringup for *41068 Robotics Studio I*. This package launches a Husky UGV and/or a simple "Parrot" drone in custom Ignition Gazebo simulation worlds with trees and grass. We use **ROS 2 Humble** and **Ignition Gazebo Fortress**.
