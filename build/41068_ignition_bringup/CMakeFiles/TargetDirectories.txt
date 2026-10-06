@@ -1,0 +1,9 @@
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/uninstall.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/41068_ignition_bringup_uninstall.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/test.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/edit_cache.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/rebuild_cache.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/list_install_components.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/install.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/install/local.dir
+/home/student/41068_ws/src/RS1/build/41068_ignition_bringup/CMakeFiles/install/strip.dir

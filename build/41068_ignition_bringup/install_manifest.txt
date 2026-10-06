@@ -1,0 +1,2 @@
+/home/student/41068_ws/src/RS1/install/41068_ignition_bringup/lib/41068_ignition_bringup/autonomous_controller
+/home/student/41068_ws/src/RS1/install/41068_ignition_bringup/lib/41068_ignition_bringup/terrain_scanner
