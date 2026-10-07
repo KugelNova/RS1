@@ -1,0 +1,2 @@
+/home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/lib/41068_ignition_bringup/autonomous_controller
+/home/desktop_fj3ree7/41068_ws/src/RS1/install/41068_ignition_bringup/lib/41068_ignition_bringup/thermal_detector

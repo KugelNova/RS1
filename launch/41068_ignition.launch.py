@@ -234,6 +234,14 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     ld.add_action(use_sim_time_launch_arg)
 
+    # 1. Declare the gui argument
+    gui_launch_arg = DeclareLaunchArgument(
+        'gui',
+        default_value='True',  # Default to launching Gazebo GUI
+        description='Flag to launch Gazebo GUI client',
+    )
+    ld.add_action(gui_launch_arg)
+
     rviz_launch_arg = DeclareLaunchArgument(
         'rviz',
         default_value='False',
@@ -271,7 +279,8 @@ def generate_launch_description():
 
     world_launch_arg = DeclareLaunchArgument(
         'world',
-        default_value='rescue_forest',
+        #default_value='rescue_forest',
+        default_value='simple_trees',
         description='Which world to load',
         choices=['simple_trees', 'large_demo','rescue_forest'],
     )
@@ -293,7 +302,7 @@ def generate_launch_description():
         value=server_config_file,
     ))
 
-    # Start Gazebo once.
+    # Start Gazebo once. # 2. Pass -s conditionally inside ign_args
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([
@@ -310,6 +319,7 @@ def generate_launch_description():
                     [LaunchConfiguration('world'), '.sdf'],
                 ]),
                 ' -r',
+                PythonExpression(["' -s' if '", LaunchConfiguration('gui'), "' == 'False' or '", LaunchConfiguration('gui'), "' == 'false' else ''"])
             ]
         }.items(),
     ))
@@ -361,17 +371,6 @@ def generate_launch_description():
         z='0.8',
         spawn_delay=6.0,
     )
-
-    # Start the thermal / IR rescue-target detector whenever the Parrot is enabled.
-    ld.add_action(Node(
-        package='41068_ignition_bringup',
-        executable='thermal_detector',
-        namespace='parrot1',
-        name='thermal_detector',
-        output='screen',
-        parameters=[{'use_sim_time': use_sim_time}],
-        condition=_if_true('parrot'),
-    ))
 
     add_navigation_instance(
         ld,
