@@ -24,11 +24,11 @@ class FullFlightPath(Node):
             '/parrot1/cmd_vel',
             10
         )
-
+ 
         # True Gazebo 3D position
         self.create_subscription(
             TFMessage,
-            '/world/large_demo/dynamic_pose/info',
+            '/world/simple_trees/dynamic_pose/info',
             self.pose_callback,
             10
         )
@@ -42,15 +42,15 @@ class FullFlightPath(Node):
         )
 
         # Search-area settings
-        self.minimum_x = 2.0
-        self.maximum_x = 18.0
-        self.minimum_y = -10.0
-        self.maximum_y = 10.0
-        self.lane_spacing = 3.0
+        self.minimum_x = -3.0
+        self.maximum_x = 8.0
+        self.minimum_y = -3.0
+        self.maximum_y = 6.0
+        self.lane_spacing = 2.0
 
         # Flight settings
         self.survey_altitude = 3.0
-        self.maximum_altitude = 6.0
+        self.maximum_altitude = 15.0
         self.obstacle_distance = 2.0
         self.waypoint_tolerance = 0.5
 
@@ -74,6 +74,15 @@ class FullFlightPath(Node):
         self.avoidance_target_yaw = None
         self.avoidance_attempts = 0
         self.maximum_avoidance_attempts = 5
+
+        # vertical obsatcle avoidance 
+        self.escape_altitude = 10.0
+        self.backup_distance = 2
+        self.escape_tolerance = 0.2
+
+        # Track escape manoeuvre
+        self.escape_start_x = None
+        self.escape_start_y = None
 
         self.waypoints = self.generate_lawnmower_path()
         self.current_waypoint_index = 0
@@ -285,13 +294,13 @@ class FullFlightPath(Node):
     def begin_avoidance(self):
         self.stop_drone()
 
-        if self.avoidance_attempts >= self.maximum_avoidance_attempts:
-            self.state = 'BLOCKED'
+        # if self.avoidance_attempts >= self.maximum_avoidance_attempts:
+        #     self.state = 'BLOCKED'
 
-            self.get_logger().error(
-                'Maximum avoidance attempts reached. Drone stopped.'
-            )
-            return
+        #     self.get_logger().error(
+        #         'Maximum avoidance attempts reached. Drone stopped.'
+        #     )
+        #     return
 
         left_blocked = (
             self.left_distance < self.obstacle_distance
@@ -301,11 +310,17 @@ class FullFlightPath(Node):
             self.right_distance < self.obstacle_distance
         )
 
-        if left_blocked and right_blocked:
-            self.state = 'BLOCKED'
+        if ((left_blocked and right_blocked) or self.avoidance_attempts >= self.maximum_avoidance_attempts
+):
+            self.state = 'AVOID_BACKUP'
 
-            self.get_logger().error(
-                'Front, left and right directions are blocked.'
+            self.escape_start_x = self.current_x
+            self.escape_start_y = self.current_y
+
+            self.stop_drone()
+
+            self.get_logger().warning(
+                'Both sides blocked. Starting vertical avoidance.'
             )
             return
 
@@ -435,6 +450,18 @@ class FullFlightPath(Node):
             if self.state in ('AVOID_TURN', 'AVOID_SIDE'):
                 self.control_avoidance()
                 return
+
+            # Handle vertical obstacle avoidance
+            if self.state in (
+                'AVOID_BACKUP',
+                'AVOID_CLIMB',
+                'AVOID_CROSS',
+                'AVOID_DESCEND'
+            ):
+                self.control_vertical_avoidance()
+                return
+
+            
 
             # Stop safely when an obstacle is ahead.
             # then we calculate angle to next way point 
