@@ -47,4 +47,27 @@ install(
   RENAME full_flight_path
 )
 
+# Thermal detection
+install(
+  PROGRAMS scripts/thermal_detector.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME thermal_detector
+)
+
+# Target localisation
+install(
+  PROGRAMS scripts/target_localizer.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME target_localizer
+)
+
+# Supporting localisation modules
+install(
+  FILES
+    scripts/target_geometry.py
+    scripts/target_tracks.py
+    scripts/thermal_shape.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 ament_package()
