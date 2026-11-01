@@ -179,7 +179,7 @@
         <image>
           <width>320</width>
           <height>240</height>
-          <format>L8</format>
+          <format>L16</format>
         </image>
         <clip>
           <near>0.1</near>
@@ -199,7 +199,7 @@
       <plugin filename="ignition-gazebo-thermal-sensor-system" name="ignition::gazebo::systems::ThermalSensor">
         <min_temp>250.0</min_temp>
         <max_temp>400.0</max_temp>
-        <resolution>1.47</resolution>
+        <resolution>0.01</resolution>
       </plugin>   
 
     </sensor>

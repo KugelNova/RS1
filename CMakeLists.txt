@@ -45,6 +45,29 @@ install(
   RENAME thermal_detector
 )
 
+# Search-and-rescue localisation (additive node)
+install(
+  PROGRAMS scripts/target_localizer.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME target_localizer
+)
+install(
+  FILES scripts/target_geometry.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Quality gate helper: installed beside target_localizer for standalone imports
+install(
+  FILES scripts/target_tracks.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+# Existing Python dependency used by target_localizer for silhouette classification
+install(
+  FILES scripts/thermal_shape.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()

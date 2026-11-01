@@ -25,7 +25,7 @@ class ThermalDetector(Node):
 
         self.subscription = self.create_subscription(
             Image,
-            '/parrot1/thermal/image_raw',
+            '/parrot1/camera/thermal/image',
             self.image_callback,
             10
         )

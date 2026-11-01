@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
 import sys
+import csv
+import json
+import math as _math
+from collections import deque
 import math
 import time
 import numpy as np
@@ -12,8 +16,9 @@ from rclpy.qos import qos_profile_sensor_data
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import Image, LaserScan
+from std_msgs.msg import String
 
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QUrl
 from PyQt5.QtGui import (
     QImage,
     QPixmap,
@@ -21,6 +26,7 @@ from PyQt5.QtGui import (
     QPainter,
     QPen,
     QColor,
+    QDesktopServices,
 )
 from PyQt5.QtWidgets import (
     QApplication,
@@ -32,8 +38,16 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QComboBox,
+    QTableWidget,
+    QTableWidgetItem,
+    QAbstractItemView,
+    QMessageBox,
 )
 
+
+from pyqt_rescue_records import rescue_log_dir, list_missions, read_mission, mission_path
+
+# RS1_PYQT_RESCUE_V1
 
 LINEAR_SPEED = 0.5
 ANGULAR_SPEED = 0.8
@@ -53,6 +67,7 @@ class DroneUiNode(Node):
         self.latest_rgb_image = None
         self.latest_thermal_image = None
         self.latest_scan = None
+        self.live_rescue_alerts = deque(maxlen=100)
 
         self.x = 0.0
         self.y = 0.0
@@ -79,9 +94,16 @@ class DroneUiNode(Node):
 
         self.create_subscription(
             Image,
-            '/parrot1/thermal/image_raw',
+            '/parrot1/camera/thermal/image',
             self.thermal_callback,
             qos_profile_sensor_data
+        )
+
+        self.create_subscription(
+            String,
+            '/parrot1/rescue/target_alert',
+            self.rescue_alert_callback,
+            10
         )
 
         self.create_subscription(
@@ -101,6 +123,31 @@ class DroneUiNode(Node):
         self.get_logger().info(
             'Drone UI ROS node started'
         )
+
+
+    # --------------------------------------------------
+    # RESCUE ALERTS (ROS callback; PyQt update occurs on UI timer)
+    # --------------------------------------------------
+
+    def rescue_alert_callback(self, msg):
+        try:
+            obj = json.loads(msg.data)
+            alert = {
+                'id': int(obj['id']),
+                'frame_id': str(obj['frame_id']),
+                'x_m': float(obj['x_m']),
+                'y_m': float(obj['y_m']),
+                'z_m': float(obj['z_m']),
+                'max_temp_c': float(obj['max_temp_c']),
+                'edge_clipped': str(obj.get('edge_clipped', 'False')).lower() == 'true',
+            }
+            if not alert['frame_id'] or not all(
+                _math.isfinite(alert[k]) for k in ('x_m', 'y_m', 'z_m', 'max_temp_c')
+            ):
+                raise ValueError('Invalid rescue alert data')
+            self.live_rescue_alerts.append(alert)
+        except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
+            self.get_logger().warning(f'Ignored invalid rescue alert: {exc}')
 
 
     # --------------------------------------------------
@@ -409,14 +456,19 @@ class DroneUI(QWidget):
 
         self.linear_cmd = 0.0
         self.angular_cmd = 0.0
+        self.manual_active = False
+        self.live_alert_count = 0
+        self.selected_mission_name = None
+        self.current_rescue_records = []
+        self._history_signature = None
 
         self.setWindowTitle(
             'Search & Rescue Drone Control'
         )
 
         self.resize(
-            1100,
-            750
+            1200,
+            980
         )
 
         self.setFocusPolicy(
@@ -448,6 +500,11 @@ class DroneUI(QWidget):
         )
 
         self.command_timer.start(100)
+
+        self.mission_refresh_timer = QTimer(self)
+        self.mission_refresh_timer.timeout.connect(self.refresh_rescue_history)
+        self.mission_refresh_timer.start(1500)
+        self.refresh_rescue_history()
 
 
     # --------------------------------------------------
@@ -660,6 +717,63 @@ class DroneUI(QWidget):
         )
 
         # -------------------------
+        # RESCUE ALERTS & SAVED LOCATIONS
+        # -------------------------
+
+        rescue_group = QGroupBox('Rescue detections — localizer coordinates')
+        rescue_layout = QVBoxLayout()
+
+        alert_row = QHBoxLayout()
+        self.rescue_alert_label = QLabel('No live rescue alerts yet')
+        self.rescue_alert_label.setWordWrap(True)
+        self.rescue_alert_label.setStyleSheet(
+            'QLabel { background: #44331a; color: #ffdb8f; '
+            'font-weight: bold; padding: 10px; border-radius: 6px; }'
+        )
+        alert_row.addWidget(self.rescue_alert_label, 1)
+        self.acknowledge_button = QPushButton('Acknowledge')
+        self.acknowledge_button.setEnabled(False)
+        self.acknowledge_button.clicked.connect(self.acknowledge_rescue_alert)
+        alert_row.addWidget(self.acknowledge_button)
+        rescue_layout.addLayout(alert_row)
+
+        mission_row = QHBoxLayout()
+        mission_row.addWidget(QLabel('Saved mission:'))
+        self.mission_selector = QComboBox()
+        self.mission_selector.addItem('Latest (auto)', None)
+        self.mission_selector.currentIndexChanged.connect(self.render_rescue_history)
+        mission_row.addWidget(self.mission_selector, 1)
+        self.refresh_missions_button = QPushButton('Refresh')
+        self.refresh_missions_button.clicked.connect(self.refresh_rescue_history)
+        mission_row.addWidget(self.refresh_missions_button)
+        self.open_csv_button = QPushButton('Open CSV')
+        self.open_csv_button.clicked.connect(self.open_rescue_csv)
+        mission_row.addWidget(self.open_csv_button)
+        self.copy_coordinates_button = QPushButton('Copy selected location')
+        self.copy_coordinates_button.clicked.connect(self.copy_selected_target)
+        mission_row.addWidget(self.copy_coordinates_button)
+        rescue_layout.addLayout(mission_row)
+
+        self.rescue_table = QTableWidget(0, 9)
+        self.rescue_table.setHorizontalHeaderLabels([
+            'ID', 'Sim time (s)', 'X (m)', 'Y (m)', 'Z (m)',
+            'Max °C', 'Frame', 'Edge clipped', 'Hot pixels'
+        ])
+        self.rescue_table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.rescue_table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.rescue_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.rescue_table.setMinimumHeight(160)
+        self.rescue_table.horizontalHeader().setStretchLastSection(True)
+        rescue_layout.addWidget(self.rescue_table)
+
+        self.rescue_path_label = QLabel('Logs: ' + str(rescue_log_dir()))
+        self.rescue_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self.rescue_path_label.setWordWrap(True)
+        rescue_layout.addWidget(self.rescue_path_label)
+        rescue_group.setLayout(rescue_layout)
+        main_layout.addWidget(rescue_group)
+
+        # -------------------------
         # CONTROLS
         # -------------------------
 
@@ -789,6 +903,127 @@ class DroneUI(QWidget):
 
 
     # --------------------------------------------------
+    # LIVE RESCUE ALERTS AND READ-ONLY HISTORY
+    # --------------------------------------------------
+
+    def consume_rescue_alerts(self):
+        while self.node.live_rescue_alerts:
+            alert = self.node.live_rescue_alerts.popleft()
+            self.live_alert_count += 1
+            self.rescue_alert_label.setText(
+                f'NEW TARGET #{alert["id"]} — '
+                f'X={alert["x_m"]:.3f}, Y={alert["y_m"]:.3f}, '
+                f'Z={alert["z_m"]:.3f} m '
+                f'[{alert["frame_id"]}]  '
+                f'Max={alert["max_temp_c"]:.2f} °C'
+                + ('  |  EDGE CLIPPED' if alert['edge_clipped'] else '')
+            )
+            self.rescue_alert_label.setStyleSheet(
+                'QLabel { background: #7c2525; color: white; '
+                'font-weight: bold; padding: 10px; border-radius: 6px; }'
+            )
+            self.acknowledge_button.setEnabled(True)
+            QApplication.beep()
+            # Refresh immediately; CSV is flushed before the ROS alert is published.
+            self._history_signature = None
+            self.refresh_rescue_history()
+
+    def acknowledge_rescue_alert(self):
+        self.acknowledge_button.setEnabled(False)
+        self.rescue_alert_label.setText(
+            f'Alert acknowledged — {self.live_alert_count} live target alert(s) this UI session'
+        )
+        self.rescue_alert_label.setStyleSheet(
+            'QLabel { background: #263e2b; color: #a6f5af; '
+            'padding: 10px; border-radius: 6px; }'
+        )
+
+    def refresh_rescue_history(self):
+        try:
+            choices = list_missions()
+            old_selection = self.mission_selector.currentData()
+            current_choices = [self.mission_selector.itemData(i)
+                               for i in range(1, self.mission_selector.count())]
+            if choices != current_choices:
+                self.mission_selector.blockSignals(True)
+                self.mission_selector.clear()
+                self.mission_selector.addItem('Latest (auto)', None)
+                for name in choices:
+                    self.mission_selector.addItem(name, name)
+                if old_selection in choices:
+                    self.mission_selector.setCurrentIndex(choices.index(old_selection) + 1)
+                self.mission_selector.blockSignals(False)
+            self.render_rescue_history()
+        except (OSError, ValueError, csv.Error) as exc:
+            self.rescue_path_label.setText('Cannot read rescue logs: ' + str(exc))
+
+    def render_rescue_history(self, *_):
+        choices = list_missions()
+        chosen = self.mission_selector.currentData()
+        name = chosen if chosen in choices else (choices[0] if choices else None)
+        if not name:
+            self.selected_mission_name = None
+            self.current_rescue_records = []
+            self.rescue_table.setRowCount(0)
+            self.rescue_path_label.setText('No rescue CSV files yet: ' + str(rescue_log_dir()))
+            return
+        try:
+            path = mission_path(name)
+            info = path.stat()
+            signature = (name, info.st_mtime_ns, info.st_size)
+            if signature == self._history_signature:
+                return
+            records = read_mission(name)
+            self._history_signature = signature
+            self.selected_mission_name = name
+            self.current_rescue_records = records
+            self.rescue_table.setRowCount(len(records))
+            for i, r in enumerate(records):
+                columns = (
+                    str(r['id']), f'{r["sim_time_sec"]:.3f}',
+                    f'{r["x_m"]:.3f}', f'{r["y_m"]:.3f}',
+                    f'{r["z_m"]:.3f}', f'{r["max_temp_c"]:.2f}',
+                    r['frame_id'], 'YES' if r['edge_clipped'] else 'NO',
+                    str(r['hot_pixels']),
+                )
+                for j, value in enumerate(columns):
+                    self.rescue_table.setItem(i, j, QTableWidgetItem(value))
+            if records:
+                self.rescue_table.selectRow(len(records) - 1)
+            self.rescue_path_label.setText(
+                f'{len(records)} saved target(s) | CSV: {path}'
+            )
+        except (OSError, ValueError, csv.Error) as exc:
+            self._history_signature = None
+            self.rescue_path_label.setText('Cannot read rescue CSV: ' + str(exc))
+
+    def copy_selected_target(self):
+        row = self.rescue_table.currentRow()
+        if row < 0 or row >= len(self.current_rescue_records):
+            QMessageBox.information(self, 'Select a target',
+                                    'Select a target row first.')
+            return
+        r = self.current_rescue_records[row]
+        copied = (f'Target #{r["id"]}: '
+                  f'({r["x_m"]:.3f}, {r["y_m"]:.3f}, {r["z_m"]:.3f}) m '
+                  f'[{r["frame_id"]}], sim time={r["sim_time_sec"]:.3f}s')
+        QApplication.clipboard().setText(copied)
+
+    def open_rescue_csv(self):
+        if not self.selected_mission_name:
+            QMessageBox.information(self, 'No mission', 'No saved rescue CSV yet.')
+            return
+        try:
+            path = mission_path(self.selected_mission_name)
+        except (ValueError, FileNotFoundError):
+            QMessageBox.warning(self, 'Missing file', 'This mission CSV is unavailable.')
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
+            QMessageBox.information(self, 'CSV path',
+                                    f'Open the CSV manually:\n{path}')
+
+
+    # --------------------------------------------------
     # ROS PROCESSING
     # --------------------------------------------------
 
@@ -813,6 +1048,8 @@ class DroneUI(QWidget):
     # --------------------------------------------------
 
     def update_ui(self):
+
+        self.consume_rescue_alerts()
 
         self.position_label.setText(
             f'Position\n'
@@ -1161,11 +1398,15 @@ class DroneUI(QWidget):
 
         self.linear_cmd = linear
         self.angular_cmd = angular
+        self.manual_active = bool(linear or angular)
 
         self.publish_current_command()
 
 
     def publish_current_command(self):
+
+        if not self.manual_active:
+            return  # Do not override an autonomous controller with idle zero commands.
 
         self.node.send_velocity(
             self.linear_cmd,
@@ -1177,6 +1418,7 @@ class DroneUI(QWidget):
 
         self.linear_cmd = 0.0
         self.angular_cmd = 0.0
+        self.manual_active = False
 
         self.node.stop()
 
@@ -1279,6 +1521,7 @@ class DroneUI(QWidget):
         self.ros_timer.stop()
         self.command_timer.stop()
         self.ui_timer.stop()
+        self.mission_refresh_timer.stop()
 
         event.accept()
 
