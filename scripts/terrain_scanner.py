@@ -19,7 +19,7 @@ class TerrainProfiler(Node):
 
         self.create_subscription(
             TFMessage,
-            '/world/large_demo/dynamic_pose/info',
+            '/world/simple_trees/dynamic_pose/info',
             self.pose_callback,
             10
         )
@@ -35,7 +35,7 @@ class TerrainProfiler(Node):
         self.drone_rotation = None
 
         self.grid_size = 0.5
-        self.max_sensor_range = 15.0
+        self.max_sensor_range = 25.0
         self.point_step = 20
 
         # Each grid cell stores [lowest_z, number_of_points].

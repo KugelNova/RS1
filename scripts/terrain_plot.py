@@ -110,4 +110,36 @@ print(f'Minimum elevation: {np.min(z_values):.3f} m')
 print(f'Maximum elevation: {np.max(z_values):.3f} m')
 print(f'Saved map to: {output_path}')
 
+
+#----- now we implement a 3d plot
+fig_3d = plt.figure(figsize=(12, 8))
+ax_3d = fig_3d.add_subplot(111, projection='3d')
+
+scatter = ax_3d.scatter(
+    x_values,
+    y_values,
+    z_values,
+    c=z_values,
+    cmap='terrain',
+    s=12
+)
+
+ax_3d.set_title('Parrot Drone 3D Terrain Elevation Map')
+ax_3d.set_xlabel('World X (m)')
+ax_3d.set_ylabel('World Y (m)')
+ax_3d.set_zlabel('Elevation Z (m)')
+
+fig_3d.colorbar(
+    scatter,
+    ax=ax_3d,
+    shrink=0.6,
+    label='Elevation (m)'
+)
+
+fig_3d.savefig(
+    os.path.expanduser('~/41068_ws/terrain_3d_map.png'),
+    dpi=200,
+    bbox_inches='tight'
+)
+
 plt.show()
