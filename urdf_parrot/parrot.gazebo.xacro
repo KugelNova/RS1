@@ -6,13 +6,9 @@
   <xacro:arg name="gz_model_name" default="parrot"/>
   <xacro:property name="gz_model_name" value="$(arg gz_model_name)"/>
 
-  
-
-  <!-- <xacro:include filename="$(find 41068_ignition_bringup)/urdf_husky/wheel.urdf.xacro"/> -->
-
   <gazebo reference="${prefix}imu_link">
     <turnGravityOff>true</turnGravityOff>
-    <sensor type="imu" name="imu">
+    <sensor type="imu" name="${prefix}imu">
       <always_on>true</always_on>
       <visualize>$(arg imu_visual)</visualize>
       <update_rate>100</update_rate>
@@ -80,7 +76,7 @@
     <material>Gazebo/Grey</material>
   </gazebo>
  
-  <!-- Move base directly without faffing around with diff drive controllers -->
+  <!-- Move base velocity controller -->
   <gazebo>
     <plugin
       filename="ignition-gazebo-velocity-control-system"
@@ -89,7 +85,7 @@
     </plugin>
   </gazebo>
 
-  <!-- Publish odometry separately -->
+  <!-- Publish odometry -->
   <gazebo>
     <plugin
       filename="ignition-gazebo-odometry-publisher-system"
@@ -98,6 +94,7 @@
       <odom_publish_frequency>20</odom_publish_frequency>
       <odom_frame>${prefix}odom</odom_frame>
       <robot_base_frame>${prefix}base_link</robot_base_frame>
+      <dimensions>3</dimensions>
     </plugin>
   </gazebo>
 
@@ -112,7 +109,7 @@
   <gazebo reference="${prefix}base_scan">
     <turnGravityOff>true</turnGravityOff>
     <material>Gazebo/FlatBlack</material>
-    <sensor type="gpu_lidar" name="lidar">
+    <sensor type="gpu_lidar" name="${prefix}lidar">
       <pose relative_to='${prefix}base_scan'>0 0 0 0 0 0</pose>
       <visualize>$(arg laser_visual)</visualize>
       <topic>model/${gz_model_name}/scan</topic>
@@ -144,7 +141,7 @@
 
   <gazebo reference="${prefix}camera_link">
     <turnGravityOff>true</turnGravityOff>
-    <sensor name="rgbd_camera" type="rgbd_camera">
+    <sensor name="${prefix}rgbd_camera" type="rgbd_camera">
       <camera>
         <horizontal_fov>2.0944</horizontal_fov>
         <image>
@@ -155,26 +152,52 @@
           <near>0.1</near>
           <far>40</far>
         </clip>
-        <!-- depth_camera near/far clip seems to be ignored for some reason -->
-        <!--    We're using Ignition Gazebo Fortress, which uses sdf format 1.9: http://sdformat.org/tutorials?tut=roadmap -->
-        <!--    This takes the depth_camera parameter with near / far clip http://sdformat.org/spec?ver=1.4&elem=sensor  -->
-        <!-- We also use ign sensors v6 ( run ls | grep libignition-sensors in /usr/lib/x86_64-linux-gnu)-->
-        <!-- Looking at the source code, the sdf sets HasDepthCamera() and corresponding HasDepthNearClip() & HasDepthFarClip() which are used in RgbdCameraSensor.cc, so this should work? -->
-        <!--    SDF description of Camera: https://github.com/gazebosim/sdformat/blob/sdf9/src/Camera.cc#L598-->
-        <!--    Camera sensor source code: https://github.com/gazebosim/gz-sensors/blob/ign-sensors6/src/RgbdCameraSensor.cc#L311  -->
         <depth_camera>
           <clip>
             <near>0.4</near>
-            <far>10</far>
+            <far>25</far>
           </clip>
         </depth_camera>
       </camera>
       <always_on>1</always_on>
-      <update_rate>3</update_rate> <!--10-->
+      <update_rate>10</update_rate>
       <visualize>$(arg camera_visual)</visualize>
-      <topic>/model/${gz_model_name}/camera</topic>
+      <topic>model/${gz_model_name}/camera</topic>
       <gz_frame_id>${prefix}camera_link</gz_frame_id>
     </sensor>
   </gazebo>
 
+<!-- Thermal camera -->
+<gazebo reference="${prefix}thermal_camera_link">
+  <sensor name="${prefix}thermal_camera" type="thermal">
+    <always_on>true</always_on>
+    <update_rate>10</update_rate>
+    <topic>/model/${gz_model_name}/camera/thermal_image</topic>
+    <gz_frame_id>${prefix}thermal_camera_link</gz_frame_id>
+
+    <camera>
+      <horizontal_fov>2.0944</horizontal_fov>
+      <image>
+        <width>320</width>
+        <height>240</height>
+        <format>L16</format>
+      </image>
+      <clip>
+        <near>0.1</near>
+        <far>100</far>
+      </clip>
+    </camera>
+
+    <plugin
+      filename="ignition-gazebo-thermal-sensor-system"
+      name="ignition::gazebo::systems::ThermalSensor">
+      <min_temp>250.0</min_temp>
+      <max_temp>400.0</max_temp>
+      <resolution>0.01</resolution>
+    </plugin>
+  </sensor>
+</gazebo>
+
+
+ 
 </robot>

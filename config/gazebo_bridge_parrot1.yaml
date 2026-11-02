@@ -60,3 +60,10 @@
   ros_type_name: "sensor_msgs/msg/PointCloud2"
   gz_type_name: "ignition.msgs.PointCloudPacked"
   direction: GZ_TO_ROS
+
+# Camera: Thermal
+- ros_topic_name: "/parrot1/camera/thermal/image"
+  gz_topic_name: "/model/parrot1/camera/thermal_image"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "ignition.msgs.Image"
+  direction: GZ_TO_ROS
