@@ -94,7 +94,7 @@ class RescueDroneNode(Node):
                 self.current_twist.angular.y = 0.0
                 self.current_twist.angular.z = float(az)
 
-       # self.cmd_pub.publish(self.current_twist)
+        self.cmd_pub.publish(self.current_twist)
         
     def odom_cb(self, msg):
         self.x = msg.pose.pose.position.x
@@ -124,10 +124,7 @@ class RescueDroneNode(Node):
             
     def thermal_cb(self, msg):
         try:
-           
-
-
-        # Read 16-bit thermal image
+            # Read 16-bit thermal image
        	    dtype = '>u2' if msg.is_bigendian else '<u2'
             img = np.frombuffer(msg.data, dtype=np.dtype(dtype))
             img = img.reshape(msg.height, msg.step // 2)

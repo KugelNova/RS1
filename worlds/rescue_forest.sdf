@@ -1,6 +1,35 @@
 <?xml version="1.0"?>
 <sdf version='1.8'>
-  <world name="large_demo">
+  <world name="rescue_forest">
+
+    <!-- Essential World Systems -->
+    <plugin
+      filename="ignition-gazebo-physics-system"
+      name="ignition::gazebo::systems::Physics">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-user-commands-system"
+      name="ignition::gazebo::systems::UserCommands">
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-scene-broadcaster-system"
+      name="ignition::gazebo::systems::SceneBroadcaster">
+    </plugin>
+
+     <!-- REQUIRED FOR ALL CAMERAS & THERMAL SENSORS -->
+    <plugin
+      filename="ignition-gazebo-sensors-system"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+
+    <!-- World Thermal System with Default Ambient Temp (293.15 K) -->
+    <plugin
+      filename="ignition-gazebo-thermal-system"
+      name="ignition::gazebo::systems::Thermal">
+      <temperature>293.15</temperature>
+    </plugin>
+
     <!-- Basic world setup  -->
     <light name="sun" type="directional">
       <cast_shadows>0</cast_shadows>
@@ -1016,6 +1045,7 @@
         </visual>
       </link>
     </model>
+
     <model name="demo_tree_healthy">
       <pose>4 -4 0 0 0 0</pose>
       <static>true</static>
@@ -1054,6 +1084,7 @@
         </visual>
       </link>
     </model>
+
     <model name="demo_tree_fire">
       <pose>0 0 -30 0 0 0</pose>
       <static>true</static>
@@ -1092,6 +1123,7 @@
         </visual>
       </link>
     </model>
+
     <model name="demo_tree_burnt">
       <pose>0 0 -30 0 0 0</pose>
       <static>true</static>
@@ -1130,6 +1162,85 @@
         </visual>
       </link>
     </model>
+
+
+    <!--  Human 1  -->
+<model name="human_1">
+  <static>true</static>
+  <pose>0 -2 0 0 0 0</pose>
+  
+  <link name="link">
+    <!-- 1. Realistic Visual Mesh for RGB Camera & GUI -->
+    <visual name="visual_mesh">
+      <pose>0 0 0 0 0 -1.57</pose>
+      <geometry>
+        <mesh>
+          <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+        </mesh>
+      </geometry>
+    </visual>
+
+    <!-- 2. Thermal Proxy Visual (Assigns the 32°C heat signature for the Thermal Camera) -->
+    <visual name="thermal_proxy">
+      <pose>0 0 0 0 0 -1.57</pose>
+      <geometry>
+          <mesh>
+            <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+            <scale>1.02 1.02 1.02</scale>
+          </mesh>
+      </geometry>
+     
+      <transparency>1.0</transparency>
+      <cast_shadows>false</cast_shadows>
+
+      <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>305.15</temperature>
+      </plugin>
+    </visual>
+
+    <collision name="collision">
+      <pose>0 0 0.85 0 0 0</pose>
+      <geometry>
+        <cylinder><radius>0.3</radius><length>1.7</length></cylinder>
+      </geometry>
+    </collision>
+  </link>
+</model>
+
+  <!--  Human 2  -->
+
+<model name="human_2">
+  <!-- Placed a few meters away from the origin -->
+  <pose>4 -3 0 0 0 1.57</pose>
+  <static>true</static>
+  
+  <link name="link">
+    <!-- 1. Realistic Visual Mesh -->
+    <visual name="visual">
+      <geometry>
+        <mesh>
+          <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+        </mesh>
+      </geometry>
+    </visual>
+    
+    <!-- 2. Scaled Thermal Proxy  -->
+    <visual name="thermal_proxy">
+      <geometry>
+        <mesh>
+          <uri>https://fuel.gazebosim.org/1.0/OpenRobotics/models/Standing%20person/tip/files/meshes/standing.dae</uri>
+          <scale>1.02 1.02 1.02</scale>
+        </mesh>
+      </geometry>
+      <transparency>1.0</transparency>
+      <cast_shadows>false</cast_shadows>
+      <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+        <temperature>305.15</temperature>
+      </plugin>
+    </visual>
+  </link>
+</model>
+
     <!-- End dynamic world demo models -->
 
 

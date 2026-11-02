@@ -1,1 +1,0 @@
-/home/student/41068_ws/src/RS1/scripts/dynamic_world_demo.py
