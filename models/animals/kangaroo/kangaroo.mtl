@@ -1,0 +1,12 @@
+# Blender 5.1.1 MTL File: 'DJI Matrice 4 Series and Wingcopter 198.blend'
+# www.blender.org
+
+newmtl SM_LowpolyAnimal_RatSG
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.597210 0.095813 0.090334
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
