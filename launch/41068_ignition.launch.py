@@ -8,7 +8,11 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+<<<<<<< HEAD
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution, PythonExpression
+=======
+from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution, PythonExpression, EnvironmentVariable
+>>>>>>> 809c75f (Updated new terrain world)
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
@@ -282,10 +286,27 @@ def generate_launch_description():
         #default_value='rescue_forest',
         default_value='simple_trees',
         description='Which world to load',
+<<<<<<< HEAD
         choices=['simple_trees', 'large_demo','rescue_forest'],
     )
     ld.add_action(world_launch_arg)
 
+=======
+        choices=['simple_trees', 'large_demo', 'rescue_forest', 'terrain_new'],
+    )
+    ld.add_action(world_launch_arg)
+
+    # Resolve bundled models for all worlds, including native OBJ terrain.
+    ld.add_action(SetEnvironmentVariable(
+        name='IGN_GAZEBO_RESOURCE_PATH',
+        value=[
+            PathJoinSubstitution([pkg_path, 'models']),
+            ':',
+            EnvironmentVariable('IGN_GAZEBO_RESOURCE_PATH', default_value=''),
+        ],
+    ))
+
+>>>>>>> 809c75f (Updated new terrain world)
     # Load common Gazebo server systems from a shared config file. This keeps
     # required systems such as Sensors out of individual robot and world files,
     # so custom student worlds do not need to copy plugin blocks.

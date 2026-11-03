@@ -38,7 +38,11 @@ def generate_launch_description():
         'world',
         default_value='simple_trees',
         description='Which world to load',
+<<<<<<< HEAD
         choices=['simple_trees', 'large_demo'],
+=======
+        choices=['simple_trees', 'large_demo', 'terrain_new'],
+>>>>>>> 809c75f (Updated new terrain world)
     ))
 
     ld.add_action(IncludeLaunchDescription(
