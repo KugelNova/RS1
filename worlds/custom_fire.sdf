@@ -1,0 +1,62 @@
+<?xml version="1.0" ?>
+<sdf version="1.8">
+  <model name="standalone_forest_fire">
+    <static>true</static>
+    <pose>0 0 0 0 0 0</pose>
+    
+    <!-- Heat Signature for Drone Detection -->
+    <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+      <temperature>773.15</temperature>
+    </plugin>
+
+    <link name="fire_base_link">
+        <collision name="thermal_collision">
+            <geometry>
+            <box>
+                <size>0.4 0.4 0.4</size>
+            </box>
+            </geometry>
+        </collision>
+
+        <visual name="thermal_surface">
+        <geometry>
+          <box>
+            <size>0.5 0.5 0.5</size>
+          </box>
+        </geometry>
+        <!-- Optional: Make it transparent in RGB so it doesn't block the fire particles -->
+        <material>
+          <ambient>1.0 0.3 0.0 1.0</ambient>
+          <diffuse>1.0 0.3 0.0 1.0</diffuse>
+        </material>
+      </visual>
+
+      <!-- Invisible sphere that projects a heat signature -->
+      <visual name="thermal_fire_proxy">
+        <pose>0 0 0.5 0 0 0</pose>
+        <geometry>
+          <sphere><radius>0.6</radius></sphere>
+        </geometry>
+        <transparency>1.0</transparency>
+        <cast_shadows>false</cast_shadows>
+        <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+          <temperature>652.0</temperature> 
+        </plugin>
+      </visual>
+      
+      <!-- Visual Flame and Smoke Emitter -->
+      <particle_emitter name="flame_emitter" type="box">
+        <emitting>true</emitting>
+        <size>1.0 1.0 0.0</size>
+        <particle_size>0.5 0.5 0.5</particle_size>
+        <lifetime>1.5</lifetime>
+        <min_velocity>1.0</min_velocity>
+        <max_velocity>2.5</max_velocity>
+        <scale_rate>1.2</scale_rate>
+        <rate>80</rate>
+        <color_start>1.0 0.3 0.0 1.0</color_start> <!-- Bright Orange/Red -->
+        <color_end>0.1 0.1 0.1 0.0</color_end>   <!-- Fading Dark Smoke -->
+      </particle_emitter>
+    </link>
+  </model>
+</sdf>

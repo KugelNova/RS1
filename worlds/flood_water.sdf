@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<sdf version="1.8">
+  <model name="flood_water">
+    <static>true</static>
+    <pose>0 0 0 0 0 0</pose> 
+    <link name="water_link">
+      <visual name="water_visual">
+        <geometry>
+          <box>
+            <size>120 120 0.1</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.0 0.4 0.6 0.6</ambient>
+          <diffuse>0.0 0.4 0.6 0.6</diffuse>
+          <specular>0.8 0.8 0.8 1.0</specular>
+        </material>
+        <transparency>0.3</transparency>
+        <plugin filename="ignition-gazebo-thermal-system" name="ignition::gazebo::systems::Thermal">
+          <temperature>285.15</temperature>
+        </plugin>
+      </visual>
+      <collision name="water_collision">
+        <geometry>
+          <box>
+            <size>120 120 0.1</size>
+          </box>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>
