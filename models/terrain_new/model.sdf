@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<sdf version="1.8">
+  <model name="terrain_new">
+    <static>true</static>
+    <!-- Source OBJ is Y-up. Rotate to Z-up and centre its horizontal bounds.
+         One OBJ unit is one metre. Ground at world (0, 0) is placed at z=0. -->
+    <pose>3.386013 -8.931751 2.291625055 1.5707963267948966 0 0</pose>
+    <link name="terrain">
+      <visual name="terrain_visual">
+        <geometry>
+          <mesh>
+            <uri>model://terrain_new/terrain_new.obj</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </visual>
+      <collision name="terrain_collision">
+        <geometry>
+          <mesh>
+            <uri>model://terrain_new/terrain_new.obj</uri>
+            <scale>1 1 1</scale>
+          </mesh>
+        </geometry>
+      </collision>
+    </link>
+  </model>
+</sdf>
