@@ -237,7 +237,7 @@ def generate_launch_description():
     # 1. Declare the gui argument
     gui_launch_arg = DeclareLaunchArgument(
         'gui',
-        default_value='True',  # Default to launching Gazebo GUI
+        default_value='True',  # Default True to launch Gazebo 
         description='Flag to launch Gazebo GUI client',
     )
     ld.add_action(gui_launch_arg)
@@ -376,9 +376,10 @@ def generate_launch_description():
         xacro_parts=['urdf_parrot', 'parrot.urdf.xacro'],
         bridge_config='gazebo_bridge_parrot1.yaml',
         localization_config='robot_localization_parrot1.yaml',
-        x='2.0',
-        y='0.0',
-        z='0.8',
+        x='-10.0',
+        y='7.0',
+        z='5.0',
+        yaw='1.5708',
         spawn_delay=6.0,
     )
 
