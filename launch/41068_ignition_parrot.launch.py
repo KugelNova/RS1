@@ -1,7 +1,7 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.substitutions import FindPackageShare
 
 
@@ -41,6 +41,21 @@ def generate_launch_description():
         choices=['simple_trees', 'large_demo', 'terrain_new'],
     ))
 
+    for name, count in (('humans', '3'), ('animals', '5')):
+        ld.add_action(DeclareLaunchArgument(
+            name,
+            default_value=PythonExpression([
+                "'", count, "' if '", world, "' == 'terrain_new' else '0'"]),
+            description='Startup population count for terrain_new; 0 disables this kind',
+        ))
+    ld.add_action(DeclareLaunchArgument(
+        'spawn_seed', default_value='42', description='Repeatable population placement seed',
+    ))
+    ld.add_action(DeclareLaunchArgument(
+        'animal_species', default_value='bear,deer,bird,mouse,kangaroo,horse',
+        description='Comma-separated animal types for startup spawning',
+    ))
+
     ld.add_action(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([
             FindPackageShare('41068_ignition_bringup'),
@@ -53,6 +68,10 @@ def generate_launch_description():
             'slam': slam,
             'nav2': nav2,
             'world': world,
+            'humans': LaunchConfiguration('humans'),
+            'animals': LaunchConfiguration('animals'),
+            'spawn_seed': LaunchConfiguration('spawn_seed'),
+            'animal_species': LaunchConfiguration('animal_species'),
             'husky': 'False',
             'parrot': 'True',
         }.items(),

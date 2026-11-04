@@ -297,3 +297,39 @@ If you get an error like:
 ```bash
 export QT_QPA_PLATFORM=xcb
 ```
+
+
+## Startup humans and animals
+
+The terrain_new world starts with 3 humans and 5 animals. Set the counts when
+launching; all targets are part of the world before simulation begins:
+
+~~~bash
+cd ~/41068_ws
+source /opt/ros/humble/setup.bash
+source install/local_setup.bash
+ros2 launch 41068_ignition_bringup 41068_ignition_parrot.launch.py world:=terrain_new humans:=8 animals:=12 spawn_seed:=42
+~~~
+
+- humans and animals are nonnegative whole numbers. Use 0 to disable either kind.
+- spawn_seed repeats the same layout for the same map and settings; change it
+  to get different positions.
+- animal_species optionally selects a comma-separated mix, for example
+  animal_species:=deer,bear. Available meshes are bear, deer, bird, mouse,
+  kangaroo and horse.
+- Humans and animals are stationary, upright models with warm thermal surfaces.
+  Animals keep species-appropriate sizes and people are 1.8 m tall.
+- Placement follows the current terrain collision mesh, scale and model pose.
+  It avoids tree/rock footprints, steep patches, overlapping targets and the
+  robot spawn areas. Keep terrain placement in models/terrain_new/model.sdf.
+- Counts apply to terrain_new. Other demo worlds keep their existing populations
+  by default; requesting additional targets there requires choosing terrain_new.
+- Up to 500 targets can be requested together. If the scaled map has insufficient
+  clear space, launch reports an error; reduce counts or try another seed.
+- Restart the simulation to change the population. Source worlds and meshes
+  are not rewritten; the populated world is generated for each launch.
+
+After pulling these changes, rebuild once with
+colcon build --packages-select 41068_ignition_bringup --symlink-install.
+Tests are registered as population_terrain, population_entities and
+population_world when BUILD_TESTING is enabled.

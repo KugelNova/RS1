@@ -1,12 +1,20 @@
+from pathlib import Path
+import shlex
+import tempfile
+
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
     GroupAction,
     IncludeLaunchDescription,
+    LogInfo,
+    OpaqueFunction,
+    RegisterEventHandler,
     SetEnvironmentVariable,
     TimerAction,
 )
 from launch.conditions import IfCondition
+from launch.event_handlers import OnShutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution, PythonExpression, EnvironmentVariable
 from launch_ros.actions import Node
@@ -219,6 +227,49 @@ def add_rviz_instance(
     ))
 
 
+def _launch_gazebo(context):
+    # Generate the population before the server starts, so counts are exact from
+    # the first simulation step and no asynchronous spawn processes are needed.
+    from rescue_population.world import create_population_world, nonnegative_integer
+
+    package_dir = Path(FindPackageShare('41068_ignition_bringup').perform(context))
+    world = LaunchConfiguration('world').perform(context)
+    humans = nonnegative_integer(LaunchConfiguration('humans').perform(context), 'humans')
+    animals = nonnegative_integer(LaunchConfiguration('animals').perform(context), 'animals')
+    seed = nonnegative_integer(LaunchConfiguration('spawn_seed').perform(context), 'spawn_seed')
+    world_path = package_dir / 'worlds' / (world + '.sdf')
+    actions = []
+    if humans or animals:
+        temporary = tempfile.TemporaryDirectory(prefix='rescue-population-')
+        try:
+            result = create_population_world(
+                package_dir, world, Path(temporary.name) / (world + '.sdf'),
+                humans=humans, animals=animals, spawn_seed=seed,
+                species=LaunchConfiguration('animal_species').perform(context))
+        except Exception:
+            temporary.cleanup()
+            raise
+        world_path = result.path
+
+        def cleanup(_event, _context):
+            temporary.cleanup()
+
+        actions.extend([
+            RegisterEventHandler(OnShutdown(on_shutdown=cleanup)),
+            LogInfo(msg='Placed %d humans and %d animals on the terrain (seed %d).'
+                    % (humans, animals, seed)),
+        ])
+    gui = LaunchConfiguration('gui').perform(context).lower() in ('true', '1', 'yes', 'on')
+    actions.append(IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(PathJoinSubstitution([
+            FindPackageShare('ros_ign_gazebo'), 'launch', 'ign_gazebo.launch.py'])),
+        launch_arguments={
+            'ign_args': shlex.quote(str(world_path)) + ' -r' + ('' if gui else ' -s'),
+        }.items(),
+    ))
+    return actions
+
+
 def generate_launch_description():
 
     ld = LaunchDescription()
@@ -286,6 +337,25 @@ def generate_launch_description():
     )
     ld.add_action(world_launch_arg)
 
+    for name, count, description in (
+            ('humans', '3', 'Number of stationary humans at startup; 0 disables them'),
+            ('animals', '5', 'Number of stationary animals at startup; 0 disables them')):
+        ld.add_action(DeclareLaunchArgument(
+            name,
+            default_value=PythonExpression([
+                "'", count, "' if '", LaunchConfiguration('world'),
+                "' == 'terrain_new' else '0'"]),
+            description=description,
+        ))
+    ld.add_action(DeclareLaunchArgument(
+        'spawn_seed', default_value='42',
+        description='Nonnegative random seed for repeatable population positions',
+    ))
+    ld.add_action(DeclareLaunchArgument(
+        'animal_species', default_value='bear,deer,bird,mouse,kangaroo,horse',
+        description='Comma-separated animal types to use for the startup population',
+    ))
+
     # Resolve bundled models for all worlds, including native OBJ terrain.
     ld.add_action(SetEnvironmentVariable(
         name='IGN_GAZEBO_RESOURCE_PATH',
@@ -312,27 +382,7 @@ def generate_launch_description():
         value=server_config_file,
     ))
 
-    # Start Gazebo once. # 2. Pass -s conditionally inside ign_args
-    ld.add_action(IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            PathJoinSubstitution([
-                FindPackageShare('ros_ign_gazebo'),
-                'launch',
-                'ign_gazebo.launch.py',
-            ])
-        ),
-        launch_arguments={
-            'ign_args': [
-                PathJoinSubstitution([
-                    pkg_path,
-                    'worlds',
-                    [LaunchConfiguration('world'), '.sdf'],
-                ]),
-                ' -r',
-                PythonExpression(["' -s' if '", LaunchConfiguration('gui'), "' == 'False' or '", LaunchConfiguration('gui'), "' == 'false' else ''"])
-            ]
-        }.items(),
-    ))
+    ld.add_action(OpaqueFunction(function=_launch_gazebo))
 
     # Bridge the global simulation clock once.
     ld.add_action(Node(
