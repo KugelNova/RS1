@@ -7,6 +7,7 @@ import numpy as np
 
 import rclpy
 from rescue_drone_node import RescueDroneNode
+from mission_control import MissionController
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import (
@@ -28,6 +29,7 @@ from PyQt5.QtWidgets import (
     QGroupBox,
     QComboBox,
     QTextEdit,
+    QLineEdit,
 )
 
 
@@ -49,13 +51,14 @@ class DroneUI(QWidget):
         self.cmd_ay = 0.0
         self.cmd_az = 0.0
         
-        # State tracking for the detection log, PIP, and Auto Mode
         self.prev_human_count = 0
         self.prev_fire_rgb = False
         self.prev_fire_thermal = False
         self.prev_flood = False
         self.pip_active = False
         self.is_auto_mode = False
+        
+        self.mission_ctrl = MissionController(self.node, self.log_event, self.run_survey)
 
         self.setWindowTitle('Search & Rescue Drone Control')
         self.resize(1150, 750)
@@ -71,10 +74,6 @@ class DroneUI(QWidget):
         self.ui_timer.timeout.connect(self.update_ui)
         self.ui_timer.start(100)
 
-        self.command_timer = QTimer(self)
-        self.command_timer.timeout.connect(self.publish_current_command)
-        self.command_timer.start(100)
-
     # --------------------------------------------------
     # UI
     # --------------------------------------------------
@@ -88,7 +87,9 @@ class DroneUI(QWidget):
             QPushButton:pressed { background-color: #606060; }
             QPushButton:checked { background-color: #4a6b4a; border: 2px solid #72d572; }
             QPushButton#stopButton { background-color: #8a3030; font-weight: bold; font-size: 14px; min-height: 40px; min-width: 60px; }
+            QPushButton#actionButton { background-color: #005588; font-weight: bold; border-color: #0088cc; }
             QComboBox { background-color: #303030; border: 1px solid #666666; border-radius: 5px; padding: 8px; min-width: 180px; }
+            QLineEdit { background-color: #111111; color: #fff; border: 1px solid #666; border-radius: 4px; padding: 4px; text-align: center; }
             QLabel#camera { background-color: #000000; border: 1px solid #555555; }
             QLabel#online { color: #72d572; font-size: 13px; }
             QLabel#offline { color: #dd6666; font-size: 13px; }
@@ -116,6 +117,40 @@ class DroneUI(QWidget):
         self.swap_pip_button = QPushButton('Swap PIP Views ⮀')
         self.swap_pip_button.clicked.connect(self.swap_pip)
         selector_layout.addWidget(self.swap_pip_button)
+        
+        selector_layout.addSpacing(20)
+
+        mission_group = QGroupBox('Operation Center: Mission Control')
+        mission_layout = QHBoxLayout()
+        mission_layout.setContentsMargins(5, 5, 5, 5)
+        
+        mission_layout.addWidget(QLabel('Target X:'))
+        self.target_x_input = QLineEdit('2.0')
+        self.target_x_input.setMaximumWidth(50)
+        mission_layout.addWidget(self.target_x_input)
+        
+        mission_layout.addWidget(QLabel('Y:'))
+        self.target_y_input = QLineEdit('0.0')
+        self.target_y_input.setMaximumWidth(50)
+        mission_layout.addWidget(self.target_y_input)
+        
+        self.launch_btn = QPushButton('🚀 Launch')
+        self.launch_btn.setObjectName('actionButton')
+        self.launch_btn.clicked.connect(self.launch_mission)
+        mission_layout.addWidget(self.launch_btn)
+        
+        self.survey_btn = QPushButton('🔄 Survey')
+        self.survey_btn.setObjectName('actionButton')
+        self.survey_btn.clicked.connect(self.run_survey)
+        mission_layout.addWidget(self.survey_btn)
+
+        # UPDATED UI LABEL
+        self.rtb_btn = QPushButton('🏠 RTB (-10.0, 7.0)')
+        self.rtb_btn.clicked.connect(self.return_to_base)
+        mission_layout.addWidget(self.rtb_btn)
+        
+        mission_group.setLayout(mission_layout)
+        selector_layout.addWidget(mission_group)
         
         selector_layout.addStretch()
         main_layout.addLayout(selector_layout)
@@ -165,12 +200,8 @@ class DroneUI(QWidget):
         content_layout.addLayout(right_panel_layout, 1)
         main_layout.addLayout(content_layout)
 
-        # --------------------------------------------------
-        # BOTTOM CONTROLS (Grouped Horizontally)
-        # --------------------------------------------------
         bottom_controls_layout = QHBoxLayout()
 
-        # GROUP 1: Altitude & Rotation
         alt_rot_group = QGroupBox('Altitude & Rotation')
         alt_rot_layout = QGridLayout()
         self.up_button = QPushButton('△ Fly Up (R)')
@@ -185,11 +216,9 @@ class DroneUI(QWidget):
         alt_rot_group.setLayout(alt_rot_layout)
         bottom_controls_layout.addWidget(alt_rot_group)
 
-        # GROUP 2: Primary Translation & Mode Toggle
         trans_group = QGroupBox('Translation')
         trans_main_layout = QVBoxLayout()
         
-        # Auto / Manual Mode Toggle (Aligned to Left)
         mode_layout = QHBoxLayout()
         mode_layout.addWidget(QLabel('Mode:'))
         self.manual_btn = QPushButton('Manual')
@@ -203,12 +232,11 @@ class DroneUI(QWidget):
         
         mode_layout.addWidget(self.manual_btn)
         mode_layout.addWidget(self.auto_btn)
-        mode_layout.addStretch() # Pushes buttons to the left
+        mode_layout.addStretch() 
         trans_main_layout.addLayout(mode_layout)
 
-        # Centered Navigation Grid Wrapper
         nav_center_layout = QHBoxLayout()
-        nav_center_layout.addStretch() # Squeezes grid from left
+        nav_center_layout.addStretch() 
 
         trans_layout = QGridLayout()
         self.forward_button = QPushButton('▲ Fwd (W)')
@@ -225,13 +253,12 @@ class DroneUI(QWidget):
         trans_layout.addWidget(self.back_button, 2, 1)
         
         nav_center_layout.addLayout(trans_layout)
-        nav_center_layout.addStretch() # Squeezes grid from right
+        nav_center_layout.addStretch() 
         
         trans_main_layout.addLayout(nav_center_layout)
         trans_group.setLayout(trans_main_layout)
         bottom_controls_layout.addWidget(trans_group)
 
-        # GROUP 3: Attitude Control (Pitch/Roll/Yaw)
         att_group = QGroupBox('Attitude Control (Pitch/Roll/Yaw)')
         att_layout = QGridLayout()
         self.pitch_down = QPushButton('Pitch Down (-ay)')
@@ -253,7 +280,6 @@ class DroneUI(QWidget):
         main_layout.addLayout(bottom_controls_layout)
         self.setLayout(main_layout)
 
-        # Connect Primary Navigation Buttons
         self.forward_button.pressed.connect(lambda: self.set_command(lx=LINEAR_SPEED))
         self.forward_button.released.connect(self.handle_release)
         self.back_button.pressed.connect(lambda: self.set_command(lx=-LINEAR_SPEED))
@@ -273,7 +299,6 @@ class DroneUI(QWidget):
         self.cw_button.released.connect(self.handle_release)
         self.stop_button.clicked.connect(self.stop_command)
 
-        # Connect Attitude Control Buttons
         self.pitch_down.pressed.connect(lambda: self.set_command(ay=-ANGULAR_SPEED))
         self.pitch_down.released.connect(self.handle_release)
         self.pitch_up.pressed.connect(lambda: self.set_command(ay=ANGULAR_SPEED))
@@ -289,6 +314,30 @@ class DroneUI(QWidget):
         self.yaw_right.pressed.connect(lambda: self.set_command(az=-ANGULAR_SPEED))
         self.yaw_right.released.connect(self.handle_release)
 
+    # --------------------------------------------------
+    # DELEGATED MISSION CONTROL LOGIC
+    # --------------------------------------------------
+    def launch_mission(self):
+        try:
+            tx = float(self.target_x_input.text())
+            ty = float(self.target_y_input.text())
+            self.mission_ctrl.start_mission(tx, ty)
+        except ValueError:
+            self.log_event("❌ ERROR: Invalid target coordinates!")
+
+    def return_to_base(self):
+        # UPDATED RTB COORDINATES
+        self.mission_ctrl.start_rtb(-10.0, 7.0)
+
+    def run_survey(self):
+        self.mission_ctrl.cancel_mission()
+        self.log_event("🔄 SURVEY INITIATED: Commencing 360° sensor sweep...")
+        self.set_auto_mode()
+        self.set_command(az=0.5)
+
+    # --------------------------------------------------
+    # MODES & TOGGLES
+    # --------------------------------------------------
     def set_manual_mode(self):
         self.is_auto_mode = False
         self.manual_btn.setChecked(True)
@@ -334,18 +383,21 @@ class DroneUI(QWidget):
     # --------------------------------------------------
 
     def update_ui(self):
+        state_str = getattr(self.node, 'flight_state', 'UNKNOWN')
 
         self.position_label.setText(
             f'Position (X, Y, Z)\n'
-            f'{self.node.x:6.2f}, {self.node.y:6.2f}, {self.node.z:6.2f}'
+            f'{self.node.x:6.2f}, {self.node.y:6.2f}, {self.node.z:6.2f}\n'
+            f'State: {state_str}'
         )
 
         self.heading_label.setText(
             f'Heading: '
             f'{math.degrees(self.node.yaw):6.1f}°'
         )
+
+        self.mission_ctrl.update(state_str)
         
-        # --- DETECTION EVENT LOGGING ---
         current_human_count = getattr(self.node, 'human_count', 0)
         if current_human_count > self.prev_human_count:
             for i in range(self.prev_human_count + 1, current_human_count + 1):
@@ -363,7 +415,6 @@ class DroneUI(QWidget):
         if self.node.flood_detected and not self.prev_flood:
             self.log_event(f"FLOOD HAZARD DETECTED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")
         self.prev_flood = self.node.flood_detected
-        # -------------------------------
 
         self.set_status(self.rgb_status, 'RGB Camera', self.node.rgb_frame is not None)
         self.set_status(self.thermal_status, 'IR Camera', self.node.thermal_frame is not None)
@@ -393,7 +444,6 @@ class DroneUI(QWidget):
             Qt.SmoothTransformation
         )
 
-        # Apply Picture-In-Picture Overlay
         if self.pip_active and pip_data is not None:
             pip_pixmap = QPixmap()
             pip_pixmap.loadFromData(pip_data)
@@ -419,7 +469,7 @@ class DroneUI(QWidget):
         self.camera_label.setPixmap(main_pixmap)
 
     # --------------------------------------------------
-    # STATUS
+    # STATUS & COMMAND
     # --------------------------------------------------
 
     def set_status(self, label, name, online):
@@ -433,11 +483,8 @@ class DroneUI(QWidget):
         label.style().unpolish(label)
         label.style().polish(label)
 
-    # --------------------------------------------------
-    # MOVEMENT
-    # --------------------------------------------------
-
     def set_command(self, lx=0.0, ly=0.0, lz=0.0, ax=0.0, ay=0.0, az=0.0):
+        self.mission_ctrl.cancel_mission() 
         self.cmd_lx = lx
         self.cmd_ly = ly
         self.cmd_lz = lz
@@ -457,6 +504,7 @@ class DroneUI(QWidget):
         )
 
     def stop_command(self):
+        self.mission_ctrl.cancel_mission()
         self.cmd_lx = 0.0
         self.cmd_ly = 0.0
         self.cmd_lz = 0.0
@@ -466,7 +514,7 @@ class DroneUI(QWidget):
         self.node.set_command(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
     # --------------------------------------------------
-    # KEYBOARD
+    # KEYBOARD & CLOSE
     # --------------------------------------------------
 
     def keyPressEvent(self, event):
@@ -492,14 +540,9 @@ class DroneUI(QWidget):
         if event.key() in (Qt.Key_W, Qt.Key_S, Qt.Key_A, Qt.Key_D, Qt.Key_Q, Qt.Key_E, Qt.Key_R, Qt.Key_F):
             self.handle_release()
 
-    # --------------------------------------------------
-    # CLOSE
-    # --------------------------------------------------
-
     def closeEvent(self, event):
         self.stop_command()
         self.ros_timer.stop()
-        self.command_timer.stop()
         self.ui_timer.stop()
         event.accept()
 
