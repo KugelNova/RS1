@@ -6,18 +6,7 @@ import time
 import numpy as np
 
 import rclpy
-
-# --- COMMENTED OUT FOR MERGE ---
-# from rclpy.node import Node
-# from rclpy.qos import qos_profile_sensor_data
-# from geometry_msgs.msg import Twist
-# from nav_msgs.msg import Odometry
-# from sensor_msgs.msg import Image, LaserScan
-# -------------------------------
-
-# --- ADDED FOR MERGE ---
 from rescue_drone_node import RescueDroneNode
-# -----------------------
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import (
@@ -38,33 +27,12 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QGroupBox,
     QComboBox,
+    QTextEdit,
 )
 
 
 LINEAR_SPEED = 0.5
 ANGULAR_SPEED = 0.8
-
-# --- COMMENTED OUT FOR MERGE ---
-# Thermal display range is now handled by RescueDroneNode
-# THERMAL_MIN_RAW = 28500
-# THERMAL_MAX_RAW = 31500
-
-"""
-# --- COMMENTED OUT FOR MERGE ---
-class DroneUiNode(Node):
-
-    def __init__(self):
-        super().__init__('drone_ui')
-        ... (All subscriptions, odom callbacks, and raw image conversions removed)
-        
-    def rgb_callback(self, msg): ...
-    def thermal_callback(self, msg): ...
-    def odom_callback(self, msg): ...
-    def scan_callback(self, msg): ...
-    def send_velocity(self, linear_x, angular_z): ...
-    def stop(self): ...
-# -------------------------------
-"""
 
 class DroneUI(QWidget):
 
@@ -74,21 +42,24 @@ class DroneUI(QWidget):
 
         self.node = ros_node
 
-        self.linear_cmd = 0.0
-        self.angular_cmd = 0.0
+        self.cmd_lx = 0.0
+        self.cmd_ly = 0.0
+        self.cmd_lz = 0.0
+        self.cmd_ax = 0.0
+        self.cmd_ay = 0.0
+        self.cmd_az = 0.0
+        
+        # State tracking for the detection log, PIP, and Auto Mode
+        self.prev_human_count = 0
+        self.prev_fire_rgb = False
+        self.prev_fire_thermal = False
+        self.prev_flood = False
+        self.pip_active = False
+        self.is_auto_mode = False
 
-        self.setWindowTitle(
-            'Search & Rescue Drone Control'
-        )
-
-        self.resize(
-            1100,
-            750
-        )
-
-        self.setFocusPolicy(
-            Qt.StrongFocus
-        )
+        self.setWindowTitle('Search & Rescue Drone Control')
+        self.resize(1150, 750)
+        self.setFocusPolicy(Qt.StrongFocus)
 
         self.build_ui()
 
@@ -112,21 +83,23 @@ class DroneUI(QWidget):
 
         self.setStyleSheet("""
             QWidget { background-color: #1e1e1e; color: #eeeeee; font-size: 15px; }
-            QGroupBox { border: 1px solid #555555; border-radius: 8px; margin-top: 10px; padding: 10px; font-weight: bold; }
-            QPushButton { background-color: #353535; border: 1px solid #666666; border-radius: 6px; padding: 12px; min-height: 38px; }
+            QGroupBox { border: 1px solid #555555; border-radius: 8px; margin-top: 5px; padding: 5px; font-weight: bold; }
+            QPushButton { background-color: #353535; border: 1px solid #666666; border-radius: 4px; padding: 6px; min-height: 20px; font-size: 12px; }
             QPushButton:pressed { background-color: #606060; }
-            QPushButton#stopButton { background-color: #8a3030; font-weight: bold; }
+            QPushButton:checked { background-color: #4a6b4a; border: 2px solid #72d572; }
+            QPushButton#stopButton { background-color: #8a3030; font-weight: bold; font-size: 14px; min-height: 40px; min-width: 60px; }
             QComboBox { background-color: #303030; border: 1px solid #666666; border-radius: 5px; padding: 8px; min-width: 180px; }
             QLabel#camera { background-color: #000000; border: 1px solid #555555; }
-            QLabel#online { color: #72d572; }
-            QLabel#offline { color: #dd6666; }
+            QLabel#online { color: #72d572; font-size: 13px; }
+            QLabel#offline { color: #dd6666; font-size: 13px; }
+            QTextEdit { background-color: #111111; color: #aaffaa; border: 1px solid #444444; font-family: monospace; font-size: 12px; }
         """)
 
         main_layout = QVBoxLayout()
 
         title = QLabel('SEARCH & RESCUE DRONE CONTROL')
         title.setAlignment(Qt.AlignCenter)
-        title.setFont(QFont('Arial', 22, QFont.Bold))
+        title.setFont(QFont('Arial', 18, QFont.Bold))
         main_layout.addWidget(title)
 
         selector_layout = QHBoxLayout()
@@ -134,6 +107,16 @@ class DroneUI(QWidget):
         self.view_selector = QComboBox()
         self.view_selector.addItems(['RGB Camera', 'IR / Thermal', 'LiDAR'])
         selector_layout.addWidget(self.view_selector)
+        
+        self.pip_button = QPushButton('Toggle PIP')
+        self.pip_button.setCheckable(True)
+        self.pip_button.clicked.connect(self.toggle_pip)
+        selector_layout.addWidget(self.pip_button)
+
+        self.swap_pip_button = QPushButton('Swap PIP Views ⮀')
+        self.swap_pip_button.clicked.connect(self.swap_pip)
+        selector_layout.addWidget(self.swap_pip_button)
+        
         selector_layout.addStretch()
         main_layout.addLayout(selector_layout)
 
@@ -144,11 +127,13 @@ class DroneUI(QWidget):
         self.camera_label = QLabel('Waiting for sensor data...')
         self.camera_label.setObjectName('camera')
         self.camera_label.setAlignment(Qt.AlignCenter)
-        self.camera_label.setMinimumSize(700, 450)
+        self.camera_label.setMinimumSize(600, 380)
         camera_layout.addWidget(self.camera_label)
         camera_group.setLayout(camera_layout)
         content_layout.addWidget(camera_group, 3)
 
+        right_panel_layout = QVBoxLayout()
+        
         status_group = QGroupBox('Drone Status')
         status_layout = QVBoxLayout()
         self.position_label = QLabel()
@@ -161,46 +146,178 @@ class DroneUI(QWidget):
 
         status_layout.addWidget(self.position_label)
         status_layout.addWidget(self.heading_label)
-        status_layout.addSpacing(20)
+        status_layout.addSpacing(5)
         status_layout.addWidget(self.rgb_status)
         status_layout.addWidget(self.thermal_status)
         status_layout.addWidget(self.lidar_status)
         status_layout.addWidget(self.odom_status)
-        status_layout.addStretch()
         status_group.setLayout(status_layout)
-        content_layout.addWidget(status_group, 1)
+        right_panel_layout.addWidget(status_group)
+        
+        log_group = QGroupBox('Detection Logs')
+        log_layout = QVBoxLayout()
+        self.log_text = QTextEdit()
+        self.log_text.setReadOnly(True)
+        log_layout.addWidget(self.log_text)
+        log_group.setLayout(log_layout)
+        right_panel_layout.addWidget(log_group)
 
+        content_layout.addLayout(right_panel_layout, 1)
         main_layout.addLayout(content_layout)
 
-        control_group = QGroupBox('Manual Control')
-        controls = QGridLayout()
+        # --------------------------------------------------
+        # BOTTOM CONTROLS (Grouped Horizontally)
+        # --------------------------------------------------
+        bottom_controls_layout = QHBoxLayout()
 
-        self.forward_button = QPushButton('▲\nForward\n(W)')
-        self.left_button = QPushButton('↶\nTurn Left\n(A)')
-        self.stop_button = QPushButton('STOP\n(Space)')
+        # GROUP 1: Altitude & Rotation
+        alt_rot_group = QGroupBox('Altitude & Rotation')
+        alt_rot_layout = QGridLayout()
+        self.up_button = QPushButton('△ Fly Up (R)')
+        self.down_button = QPushButton('▽ Fly Down (F)')
+        self.ccw_button = QPushButton('↶ Turn CCW (Q)')
+        self.cw_button = QPushButton('↷ Turn CW (E)')
+        
+        alt_rot_layout.addWidget(self.up_button, 0, 0)
+        alt_rot_layout.addWidget(self.ccw_button, 0, 1)
+        alt_rot_layout.addWidget(self.down_button, 1, 0)
+        alt_rot_layout.addWidget(self.cw_button, 1, 1)
+        alt_rot_group.setLayout(alt_rot_layout)
+        bottom_controls_layout.addWidget(alt_rot_group)
+
+        # GROUP 2: Primary Translation & Mode Toggle
+        trans_group = QGroupBox('Translation')
+        trans_main_layout = QVBoxLayout()
+        
+        # Auto / Manual Mode Toggle (Aligned to Left)
+        mode_layout = QHBoxLayout()
+        mode_layout.addWidget(QLabel('Mode:'))
+        self.manual_btn = QPushButton('Manual')
+        self.manual_btn.setCheckable(True)
+        self.manual_btn.setChecked(True)
+        self.manual_btn.clicked.connect(self.set_manual_mode)
+        
+        self.auto_btn = QPushButton('Auto')
+        self.auto_btn.setCheckable(True)
+        self.auto_btn.clicked.connect(self.set_auto_mode)
+        
+        mode_layout.addWidget(self.manual_btn)
+        mode_layout.addWidget(self.auto_btn)
+        mode_layout.addStretch() # Pushes buttons to the left
+        trans_main_layout.addLayout(mode_layout)
+
+        # Centered Navigation Grid Wrapper
+        nav_center_layout = QHBoxLayout()
+        nav_center_layout.addStretch() # Squeezes grid from left
+
+        trans_layout = QGridLayout()
+        self.forward_button = QPushButton('▲ Fwd (W)')
+        self.left_button = QPushButton('◀ Left (A)')
+        self.right_button = QPushButton('▶ Right (D)')
+        self.back_button = QPushButton('▼ Back (S)')
+        self.stop_button = QPushButton('STOP (Space)')
         self.stop_button.setObjectName('stopButton')
-        self.right_button = QPushButton('↷\nTurn Right\n(D)')
-        self.back_button = QPushButton('▼\nBackward\n(S)')
 
-        controls.addWidget(self.forward_button, 0, 1)
-        controls.addWidget(self.left_button, 1, 0)
-        controls.addWidget(self.stop_button, 1, 1)
-        controls.addWidget(self.right_button, 1, 2)
-        controls.addWidget(self.back_button, 2, 1)
-        control_group.setLayout(controls)
-        main_layout.addWidget(control_group)
+        trans_layout.addWidget(self.forward_button, 0, 1)
+        trans_layout.addWidget(self.left_button, 1, 0)
+        trans_layout.addWidget(self.stop_button, 1, 1)
+        trans_layout.addWidget(self.right_button, 1, 2)
+        trans_layout.addWidget(self.back_button, 2, 1)
+        
+        nav_center_layout.addLayout(trans_layout)
+        nav_center_layout.addStretch() # Squeezes grid from right
+        
+        trans_main_layout.addLayout(nav_center_layout)
+        trans_group.setLayout(trans_main_layout)
+        bottom_controls_layout.addWidget(trans_group)
 
+        # GROUP 3: Attitude Control (Pitch/Roll/Yaw)
+        att_group = QGroupBox('Attitude Control (Pitch/Roll/Yaw)')
+        att_layout = QGridLayout()
+        self.pitch_down = QPushButton('Pitch Down (-ay)')
+        self.pitch_up = QPushButton('Pitch Up (+ay)')
+        self.roll_left = QPushButton('Roll Left (-ax)')
+        self.roll_right = QPushButton('Roll Right (+ax)')
+        self.yaw_left = QPushButton('Yaw Left (+az)')
+        self.yaw_right = QPushButton('Yaw Right (-az)')
+
+        att_layout.addWidget(self.pitch_down, 0, 0)
+        att_layout.addWidget(self.roll_left, 0, 1)
+        att_layout.addWidget(self.yaw_left, 0, 2)
+        att_layout.addWidget(self.pitch_up, 1, 0)
+        att_layout.addWidget(self.roll_right, 1, 1)
+        att_layout.addWidget(self.yaw_right, 1, 2)
+        att_group.setLayout(att_layout)
+        bottom_controls_layout.addWidget(att_group)
+
+        main_layout.addLayout(bottom_controls_layout)
         self.setLayout(main_layout)
 
-        self.forward_button.pressed.connect(lambda: self.set_command(LINEAR_SPEED, 0.0))
-        self.forward_button.released.connect(self.stop_command)
-        self.back_button.pressed.connect(lambda: self.set_command(-LINEAR_SPEED, 0.0))
-        self.back_button.released.connect(self.stop_command)
-        self.left_button.pressed.connect(lambda: self.set_command(0.0, ANGULAR_SPEED))
-        self.left_button.released.connect(self.stop_command)
-        self.right_button.pressed.connect(lambda: self.set_command(0.0, -ANGULAR_SPEED))
-        self.right_button.released.connect(self.stop_command)
+        # Connect Primary Navigation Buttons
+        self.forward_button.pressed.connect(lambda: self.set_command(lx=LINEAR_SPEED))
+        self.forward_button.released.connect(self.handle_release)
+        self.back_button.pressed.connect(lambda: self.set_command(lx=-LINEAR_SPEED))
+        self.back_button.released.connect(self.handle_release)
+        self.left_button.pressed.connect(lambda: self.set_command(ly=LINEAR_SPEED))
+        self.left_button.released.connect(self.handle_release)
+        self.right_button.pressed.connect(lambda: self.set_command(ly=-LINEAR_SPEED))
+        self.right_button.released.connect(self.handle_release)
+        
+        self.up_button.pressed.connect(lambda: self.set_command(lz=LINEAR_SPEED))
+        self.up_button.released.connect(self.handle_release)
+        self.down_button.pressed.connect(lambda: self.set_command(lz=-LINEAR_SPEED))
+        self.down_button.released.connect(self.handle_release)
+        self.ccw_button.pressed.connect(lambda: self.set_command(az=ANGULAR_SPEED))
+        self.ccw_button.released.connect(self.handle_release)
+        self.cw_button.pressed.connect(lambda: self.set_command(az=-ANGULAR_SPEED))
+        self.cw_button.released.connect(self.handle_release)
         self.stop_button.clicked.connect(self.stop_command)
+
+        # Connect Attitude Control Buttons
+        self.pitch_down.pressed.connect(lambda: self.set_command(ay=-ANGULAR_SPEED))
+        self.pitch_down.released.connect(self.handle_release)
+        self.pitch_up.pressed.connect(lambda: self.set_command(ay=ANGULAR_SPEED))
+        self.pitch_up.released.connect(self.handle_release)
+        
+        self.roll_left.pressed.connect(lambda: self.set_command(ax=-ANGULAR_SPEED))
+        self.roll_left.released.connect(self.handle_release)
+        self.roll_right.pressed.connect(lambda: self.set_command(ax=ANGULAR_SPEED))
+        self.roll_right.released.connect(self.handle_release)
+        
+        self.yaw_left.pressed.connect(lambda: self.set_command(az=ANGULAR_SPEED))
+        self.yaw_left.released.connect(self.handle_release)
+        self.yaw_right.pressed.connect(lambda: self.set_command(az=-ANGULAR_SPEED))
+        self.yaw_right.released.connect(self.handle_release)
+
+    def set_manual_mode(self):
+        self.is_auto_mode = False
+        self.manual_btn.setChecked(True)
+        self.auto_btn.setChecked(False)
+        self.stop_command()
+
+    def set_auto_mode(self):
+        self.is_auto_mode = True
+        self.auto_btn.setChecked(True)
+        self.manual_btn.setChecked(False)
+
+    def handle_release(self):
+        if not self.is_auto_mode:
+            self.stop_command()
+
+    def toggle_pip(self, checked):
+        self.pip_active = checked
+
+    def swap_pip(self):
+        current = self.view_selector.currentText()
+        if current == 'RGB Camera':
+            self.view_selector.setCurrentText('IR / Thermal')
+        elif current == 'IR / Thermal':
+            self.view_selector.setCurrentText('RGB Camera')
+        
+    def log_event(self, message):
+        timestamp = time.strftime("%H:%M:%S")
+        self.log_text.append(f"[{timestamp}] {message}")
+        self.log_text.ensureCursorVisible()
 
     # --------------------------------------------------
     # ROS PROCESSING
@@ -218,20 +335,36 @@ class DroneUI(QWidget):
 
     def update_ui(self):
 
-        # --- MODIFIED FOR MERGE ---
         self.position_label.setText(
-            f'Position\n'
-            f'X: {self.node.x:7.2f} m\n'
-            f'Y: {self.node.y:7.2f} m\n'
-            f'Z: {self.node.z:7.2f} m'
+            f'Position (X, Y, Z)\n'
+            f'{self.node.x:6.2f}, {self.node.y:6.2f}, {self.node.z:6.2f}'
         )
 
         self.heading_label.setText(
             f'Heading: '
             f'{math.degrees(self.node.yaw):6.1f}°'
         )
+        
+        # --- DETECTION EVENT LOGGING ---
+        current_human_count = getattr(self.node, 'human_count', 0)
+        if current_human_count > self.prev_human_count:
+            for i in range(self.prev_human_count + 1, current_human_count + 1):
+                self.log_event(f"HUMAN #{i} DETECTED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")
+        self.prev_human_count = current_human_count
+        
+        if self.node.fire_rgb and not self.prev_fire_rgb:
+            self.log_event(f"FIRE (RGB) DETECTED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")
+        self.prev_fire_rgb = self.node.fire_rgb
+        
+        if getattr(self.node, 'fire_thermal', False) and not self.prev_fire_thermal:
+            self.log_event(f"FIRE (THERMAL) CONFIRMED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")
+        self.prev_fire_thermal = getattr(self.node, 'fire_thermal', False)
+        
+        if self.node.flood_detected and not self.prev_flood:
+            self.log_event(f"FLOOD HAZARD DETECTED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")
+        self.prev_flood = self.node.flood_detected
+        # -------------------------------
 
-        # Map directly to RescueDroneNode's image buffers to verify active feeds
         self.set_status(self.rgb_status, 'RGB Camera', self.node.rgb_frame is not None)
         self.set_status(self.thermal_status, 'IR Camera', self.node.thermal_frame is not None)
         self.set_status(self.lidar_status, 'LiDAR', self.node.lidar_frame is not None)
@@ -240,53 +373,50 @@ class DroneUI(QWidget):
         selected = self.view_selector.currentText()
 
         if selected == 'RGB Camera':
-            self.show_image(self.node.rgb_frame, 'Waiting for RGB camera...')
+            self.show_image(self.node.rgb_frame, self.node.thermal_frame, 'Waiting for RGB camera...')
         elif selected == 'IR / Thermal':
-            self.show_image(self.node.thermal_frame, 'Waiting for thermal camera...')
+            self.show_image(self.node.thermal_frame, self.node.rgb_frame, 'Waiting for thermal camera...')
         elif selected == 'LiDAR':
-            self.show_lidar()
+            self.show_image(self.node.lidar_frame, None, 'Waiting for LiDAR...')
 
-    def show_image(self, image_data, waiting_text):
-
-        # --- MODIFIED FOR MERGE ---
-        if image_data is None:
+    def show_image(self, main_data, pip_data, waiting_text):
+        if main_data is None:
             self.camera_label.clear()
             self.camera_label.setText(waiting_text)
             return
 
-        # Load OpenCV-generated jpg byte array natively into PyQt
-        pixmap = QPixmap()
-        pixmap.loadFromData(image_data)
-
-        pixmap = pixmap.scaled(
+        main_pixmap = QPixmap()
+        main_pixmap.loadFromData(main_data)
+        main_pixmap = main_pixmap.scaled(
             self.camera_label.size(),
             Qt.KeepAspectRatio,
             Qt.SmoothTransformation
         )
 
-        self.camera_label.setPixmap(pixmap)
+        # Apply Picture-In-Picture Overlay
+        if self.pip_active and pip_data is not None:
+            pip_pixmap = QPixmap()
+            pip_pixmap.loadFromData(pip_data)
+            
+            pip_target_w = main_pixmap.width() // 4
+            pip_target_h = main_pixmap.height() // 4
+            pip_pixmap = pip_pixmap.scaled(pip_target_w, pip_target_h, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            
+            actual_pip_w = pip_pixmap.width()
+            actual_pip_h = pip_pixmap.height()
+            
+            painter = QPainter(main_pixmap)
+            
+            margin = 15
+            x = main_pixmap.width() - actual_pip_w - margin
+            y = main_pixmap.height() - actual_pip_h - margin
+            
+            painter.setPen(QPen(Qt.white, 2))
+            painter.drawRect(x - 1, y - 1, actual_pip_w + 2, actual_pip_h + 2)
+            painter.drawPixmap(x, y, pip_pixmap)
+            painter.end()
 
-    # --------------------------------------------------
-    # LIDAR DISPLAY
-    # --------------------------------------------------
-
-    def show_lidar(self):
-        # --- MODIFIED FOR MERGE ---
-        # Forward pre-rendered LiDAR OpenCV byte array to standard image viewer
-        self.show_image(self.node.lidar_frame, 'Waiting for LiDAR...')
-        
-        """
-        # --- COMMENTED OUT FOR MERGE ---
-        scan = self.node.latest_scan
-        if scan is None: ...
-        width = max(self.camera_label.width(), 400)
-        height = max(self.camera_label.height(), 300)
-        pixmap = QPixmap(width, height)
-        ... [Original QPainter Logic] ...
-        painter.end()
-        self.camera_label.setPixmap(pixmap)
-        # -------------------------------
-        """
+        self.camera_label.setPixmap(main_pixmap)
 
     # --------------------------------------------------
     # STATUS
@@ -307,27 +437,32 @@ class DroneUI(QWidget):
     # MOVEMENT
     # --------------------------------------------------
 
-    def set_command(self, linear, angular):
-        self.linear_cmd = linear
-        self.angular_cmd = angular
+    def set_command(self, lx=0.0, ly=0.0, lz=0.0, ax=0.0, ay=0.0, az=0.0):
+        self.cmd_lx = lx
+        self.cmd_ly = ly
+        self.cmd_lz = lz
+        self.cmd_ax = ax
+        self.cmd_ay = ay
+        self.cmd_az = az
         self.publish_current_command()
 
     def publish_current_command(self):
-        # --- MODIFIED FOR MERGE ---
         self.node.set_command(
-            lx=self.linear_cmd,
-            ly=0.0,
-            lz=0.0,
-            ax=0.0,
-            ay=0.0,
-            az=self.angular_cmd
+            lx=self.cmd_lx,
+            ly=self.cmd_ly,
+            lz=self.cmd_lz,
+            ax=self.cmd_ax,
+            ay=self.cmd_ay,
+            az=self.cmd_az
         )
 
     def stop_command(self):
-        self.linear_cmd = 0.0
-        self.angular_cmd = 0.0
-        
-        # --- MODIFIED FOR MERGE ---
+        self.cmd_lx = 0.0
+        self.cmd_ly = 0.0
+        self.cmd_lz = 0.0
+        self.cmd_ax = 0.0
+        self.cmd_ay = 0.0
+        self.cmd_az = 0.0
         self.node.set_command(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
     # --------------------------------------------------
@@ -335,15 +470,18 @@ class DroneUI(QWidget):
     # --------------------------------------------------
 
     def keyPressEvent(self, event):
-        if event.isAutoRepeat():
-            return
-
+        if event.isAutoRepeat(): return
         key = event.key()
 
-        if key == Qt.Key_W: self.set_command(LINEAR_SPEED, 0.0)
-        elif key == Qt.Key_S: self.set_command(-LINEAR_SPEED, 0.0)
-        elif key == Qt.Key_A: self.set_command(0.0, ANGULAR_SPEED)
-        elif key == Qt.Key_D: self.set_command(0.0, -ANGULAR_SPEED)
+        if key == Qt.Key_W: self.set_command(lx=LINEAR_SPEED)
+        elif key == Qt.Key_S: self.set_command(lx=-LINEAR_SPEED)
+        elif key == Qt.Key_A: self.set_command(ly=LINEAR_SPEED)
+        elif key == Qt.Key_D: self.set_command(ly=-LINEAR_SPEED)
+        elif key == Qt.Key_R: self.set_command(lz=LINEAR_SPEED)
+        elif key == Qt.Key_F: self.set_command(lz=-LINEAR_SPEED)
+        elif key == Qt.Key_Q: self.set_command(az=ANGULAR_SPEED)
+        elif key == Qt.Key_E: self.set_command(az=-ANGULAR_SPEED)
+        
         elif key == Qt.Key_Space: self.stop_command()
         elif key == Qt.Key_1: self.view_selector.setCurrentIndex(0)
         elif key == Qt.Key_2: self.view_selector.setCurrentIndex(1)
@@ -351,8 +489,8 @@ class DroneUI(QWidget):
 
     def keyReleaseEvent(self, event):
         if event.isAutoRepeat(): return
-        if event.key() in (Qt.Key_W, Qt.Key_S, Qt.Key_A, Qt.Key_D):
-            self.stop_command()
+        if event.key() in (Qt.Key_W, Qt.Key_S, Qt.Key_A, Qt.Key_D, Qt.Key_Q, Qt.Key_E, Qt.Key_R, Qt.Key_F):
+            self.handle_release()
 
     # --------------------------------------------------
     # CLOSE
@@ -367,37 +505,19 @@ class DroneUI(QWidget):
 
 
 def main():
-
     rclpy.init()
-
-    # --- MODIFIED FOR MERGE ---
-    # Instantiate RescueDroneNode instead of DroneUiNode
     node = RescueDroneNode()
-    # --------------------------
-
-    app = QApplication(
-        sys.argv
-    )
-
-    window = DroneUI(
-        node
-    )
-
+    app = QApplication(sys.argv)
+    window = DroneUI(node)
     window.show()
 
     result = app.exec_()
-
-    # --- MODIFIED FOR MERGE ---
     node.set_command(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-    # --------------------------
-
     node.destroy_node()
 
     if rclpy.ok():
         rclpy.shutdown()
-
     sys.exit(result)
-
 
 if __name__ == '__main__':
     main()
