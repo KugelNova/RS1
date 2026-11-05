@@ -282,7 +282,9 @@ def generate_launch_description():
         #default_value='rescue_forest',
         default_value='simple_trees',
         description='Which world to load',
-        choices=['simple_trees', 'large_demo','rescue_forest'],
+        choices=['simple_trees', 'large_demo','rescue_forest',
+                 'rescue_forest_far_single_test',
+                 'rescue_forest_far_pair_test'],
     )
     ld.add_action(world_launch_arg)
 
