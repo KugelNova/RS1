@@ -22,7 +22,7 @@ class EntitySpec:
 HUMAN_SPEC = EntitySpec("Human/Person.obj", 1.8, 310.15)
 ANIMAL_SPECS = {
     "bear": EntitySpec("models/animals/bear/bear.obj", 1.4, 310.15),
-    "deer": EntitySpec("models/animals/deer/deermodel.obj", 1.65, 311.15),
+    "deer": EntitySpec("models/animals/deer/deermodel.obj", 1.65, 313.15),
     "bird": EntitySpec("models/animals/bird/birdinunder10mins.obj", 0.25, 313.15),
     "mouse": EntitySpec("models/animals/mouse/mouse.obj", 0.08, 310.15),
     "kangaroo": EntitySpec("models/animals/kangaroo/kangaroo.obj", 1.6, 309.15),

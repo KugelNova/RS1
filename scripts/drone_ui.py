@@ -57,6 +57,7 @@ from PyQt5.QtWidgets import (
 
 from pyqt_rescue_records import rescue_log_dir, list_missions, read_mission, mission_path
 from rs1_coverage_route import plan_lawnmower, route_stats
+from live_elevation_map import LiveElevationMap
 
 # RS1_PYQT_OPERATOR_DASHBOARD_V2
 
@@ -74,7 +75,11 @@ THERMAL_MAX_RAW = 31500
 class DroneUiNode(Node):
 
     def __init__(self):
-        super().__init__('drone_ui')
+        super().__init__(
+            'drone_ui',
+            cli_args=['--ros-args',
+                      '-r', '/tf:=/parrot1/tf',
+                      '-r', '/tf_static:=/parrot1/tf_static'])
 
         self.latest_rgb_image = None
         self.latest_thermal_image = None
@@ -634,7 +639,7 @@ class DroneUI(QWidget):
         selector = QHBoxLayout()
         selector.addWidget(QLabel('Sensor view'))
         self.view_selector = QComboBox()
-        self.view_selector.addItems(['RGB + Thermal', 'RGB Camera', 'IR / Thermal', 'LiDAR'])
+        self.view_selector.addItems(['RGB + Thermal', 'RGB Camera', 'IR / Thermal', 'LiDAR', 'Elevation Map', 'RGB + Thermal + Elevation'])
         self.view_selector.currentIndexChanged.connect(self._on_view_changed)
         selector.addWidget(self.view_selector)
         selector.addStretch(1)
@@ -660,6 +665,33 @@ class DroneUI(QWidget):
         self.camera_pages.addTab(self._video_panel('RGB CAMERA', self.single_rgb_label), 'RGB')
         self.camera_pages.addTab(self._video_panel('IR / THERMAL', self.single_thermal_label), 'Thermal')
         self.camera_pages.addTab(self._video_panel('LIDAR', self.lidar_label), 'LiDAR')
+        # RS1_UI_TRIPLE_VIEW_V1: share ONE running live map between both views.
+        self.elevation_map = LiveElevationMap(self.node)
+        self.map_only_page = QWidget()
+        self.map_only_layout = QVBoxLayout(self.map_only_page)
+        self.map_only_layout.setContentsMargins(0, 0, 0, 0)
+        self.map_only_layout.addWidget(self.elevation_map)
+        self.camera_pages.addTab(self.map_only_page, 'Elevation')
+
+        # RGB and thermal share the left column; live elevation fills the right.
+        self.combo_rgb_label = self._make_camera_label('Waiting for RGB camera...')
+        self.combo_thermal_label = self._make_camera_label('Waiting for thermal camera...')
+        combined = QWidget()
+        combined_layout = QHBoxLayout(combined)
+        combined_layout.setContentsMargins(2, 2, 2, 2)
+        combined_layout.setSpacing(4)
+        feeds = QWidget()
+        feeds_layout = QVBoxLayout(feeds)
+        feeds_layout.setContentsMargins(0, 0, 0, 0)
+        feeds_layout.setSpacing(4)
+        feeds_layout.addWidget(self._video_panel('RGB CAMERA', self.combo_rgb_label), 1)
+        feeds_layout.addWidget(self._video_panel('IR / THERMAL', self.combo_thermal_label), 1)
+        combined_layout.addWidget(feeds, 2)
+        self.combo_map_container = QWidget()
+        self.combo_map_layout = QVBoxLayout(self.combo_map_container)
+        self.combo_map_layout.setContentsMargins(0, 0, 0, 0)
+        combined_layout.addWidget(self.combo_map_container, 3)
+        self.camera_pages.addTab(combined, 'RGB + Thermal + Elevation')
         left_layout.addWidget(self.camera_pages, 1)
 
         note = QLabel('Sensor view is read-only. Keyboard movement requires Manual Control enabled.')
@@ -980,16 +1012,13 @@ class DroneUI(QWidget):
             f"Y [{values['min_y']}, {values['max_y']}] m\n"
             f"Lane spacing: {values['lane_spacing']} m\n"
             f"Waypoint count: {stats['waypoints']}\n"
-            f"Route including transit: ~{stats['distance_m']:.0f} m\n"
-            f"Minimum sim flight time at 1.2 m/s: "
-            f"{stats['optimistic_sim_minutes']:.1f} minutes\n\n"
-            'Real time may be several times slower due to Gazebo RTF.\n'
+            f"Route including transit: ~{stats['distance_m']:.0f} m\n\n"
             'This does NOT validate canopy clearance, actual thermal '
             'coverage, or world-to-odom frame alignment.')
 
     def _start_search(self):
         try:
-            values, stats = self._terrain_request()
+            values, _ = self._terrain_request()
         except (ValueError, TypeError) as exc:
             QMessageBox.warning(self, 'Terrain search', str(exc))
             return
@@ -998,14 +1027,6 @@ class DroneUI(QWidget):
                 'Verify the climb corridor, terrain clearance and planned '
                 'search area in the actual sim, then check the clearance box.')
             return
-        if stats['optimistic_sim_minutes'] > 15:
-            reply = QMessageBox.question(self, 'Long terrain search',
-                f"Route is at least {stats['optimistic_sim_minutes']:.1f} "
-                'simulation minutes, and likely much slower in real time. '
-                'Proceed with this search sector?',
-                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply != QMessageBox.Yes:
-                return
         self.node.request('start_search', trial='terrain', search_mode='terrain',
                           clearance_verified=True, **values)
 
@@ -1058,7 +1079,16 @@ class DroneUI(QWidget):
             self.arm_button.setChecked(False)
 
     def _on_view_changed(self, idx):
+        # Move the one elevation widget instead of creating a second subscriber.
+        if idx == 5:
+            self.map_only_layout.removeWidget(self.elevation_map)
+            self.combo_map_layout.addWidget(self.elevation_map)
+        elif idx == 4:
+            self.combo_map_layout.removeWidget(self.elevation_map)
+            self.map_only_layout.addWidget(self.elevation_map)
         self.camera_pages.setCurrentIndex(idx)
+        if idx in (4, 5):
+            self.elevation_map.show()
 
     # ------------------------------------------------------------------
     # Rescue alerts and read-only history. Existing CSV format preserved.
@@ -1204,7 +1234,7 @@ class DroneUI(QWidget):
         proc = status.get('processes', {})
         # Keep the dashboard compact; full rejection reason and process states
         # remain available via tooltip instead of expanding the camera layout.
-        self.supervisor_info.setText(f'SUPERVISOR: {state}  |  {reason[:55]}')
+        self.supervisor_info.setText(f'SUPERVISOR: {state}')  # RS1_UI_QUIET_SUPERVISOR_V1
         self.supervisor_info.setToolTip(
             f'State: {state}\nReason: {reason}\nManaged: ' +
             ', '.join(f'{k}={v}' for k,v in proc.items()))
@@ -1233,8 +1263,12 @@ class DroneUI(QWidget):
             self.show_image(self.single_rgb_label, self.node.latest_rgb_image, 'Waiting for RGB...')
         elif view == 2:
             self.show_image(self.single_thermal_label, self.node.latest_thermal_image, 'Waiting for thermal...')
-        else:
+        elif view == 3:
             self.show_lidar(self.lidar_label)
+        elif view == 5:
+            self.show_image(self.combo_rgb_label, self.node.latest_rgb_image, 'Waiting for RGB...')
+            self.show_image(self.combo_thermal_label, self.node.latest_thermal_image, 'Waiting for thermal...')
+        # Elevation view renders itself on its own timer.
 
     def show_image(self, label, image, waiting_text):
         if image is None:
