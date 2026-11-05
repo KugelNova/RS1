@@ -8,6 +8,7 @@ import numpy as np
 import rclpy
 from rescue_drone_node import RescueDroneNode
 from mission_control import MissionController
+from rescue_alert import format_ground_waypoint
 
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtGui import (
@@ -398,11 +399,15 @@ class DroneUI(QWidget):
 
         self.mission_ctrl.update(state_str)
         
-        current_human_count = getattr(self.node, 'human_count', 0)
-        if current_human_count > self.prev_human_count:
-            for i in range(self.prev_human_count + 1, current_human_count + 1):
-                self.log_event(f"HUMAN #{i} DETECTED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")
-        self.prev_human_count = current_human_count
+        for sequence, alert in tuple(self.node.recent_rescue_alerts):
+            if sequence <= self.prev_human_count:
+                continue
+            message = f"HUMAN #{alert['id']} CONFIRMED at X:{alert['x_m']:.1f}, Y:{alert['y_m']:.1f}"
+            waypoint = format_ground_waypoint(alert)
+            if waypoint:
+                message += f'\n{waypoint}'
+            self.log_event(message)
+            self.prev_human_count = sequence
         
         if self.node.fire_rgb and not self.prev_fire_rgb:
             self.log_event(f"FIRE (RGB) DETECTED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")

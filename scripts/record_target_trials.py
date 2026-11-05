@@ -8,13 +8,14 @@ import argparse
 import csv
 from collections import deque
 from datetime import datetime, timezone
-import json
 from pathlib import Path
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from nav_msgs.msg import Odometry
 from std_msgs.msg import String
+
+from rescue_alert import TARGET_ALERT_TOPIC, parse_confirmed_alert
 
 FIELDS = [
     'target_id', 'alert_sim_time_sec', 'frame_id', 'target_x_m', 'target_y_m',
@@ -39,7 +40,7 @@ class TrialRecorder(Node):
         self.file.flush()
         self.create_subscription(Odometry, '/parrot1/odom', self.on_odom,
                                  qos_profile_sensor_data)
-        self.create_subscription(String, '/parrot1/rescue/target_alert',
+        self.create_subscription(String, TARGET_ALERT_TOPIC,
                                  self.on_alert, 10)
         self.get_logger().info(f'Trial={trial}; recorder CSV={self.path}')
 
@@ -51,11 +52,13 @@ class TrialRecorder(Node):
 
     def on_alert(self, msg):
         try:
-            alert = json.loads(msg.data)
-            stamp = float(alert['sim_time_sec'])
-        except (ValueError, KeyError, TypeError) as exc:
+            alert = parse_confirmed_alert(msg.data)
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
             self.get_logger().warning(f'Ignored malformed alert: {exc}')
             return
+        if alert is None:
+            return
+        stamp = alert['sim_time_sec']
         best = min(self.samples, key=lambda o: abs(o[0] - stamp), default=None)
         if best and abs(best[0] - stamp) > 1.0:
             best = None

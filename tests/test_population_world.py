@@ -16,7 +16,7 @@ def package(tmp_path):
     root = tmp_path / "package"
     (root / "worlds").mkdir(parents=True)
     (root / "models/terrain_new").mkdir(parents=True)
-    (root / "Human").symlink_to(REPO / "Human", target_is_directory=True)
+    (root / "models/Human").symlink_to(REPO / "models/Human", target_is_directory=True)
     (root / "models/animals").symlink_to(REPO / "models/animals", target_is_directory=True)
     (root / "worlds/terrain_new.sdf").write_text(
         '<sdf version="1.8"><world name="terrain_new"><include>'

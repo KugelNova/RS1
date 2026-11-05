@@ -33,6 +33,27 @@ class RescueRecordsTests(unittest.TestCase):
         self.assertEqual(records[0]['frame_id'], 'parrot1_odom')
         self.assertAlmostEqual(records[0]['x_m'], 4.029)
         self.assertTrue(records[0]['edge_clipped'])
+        self.assertNotIn('waypoint_frame_id', records[0])
+
+    def test_read_waypoint_and_keep_body_estimate_when_waypoint_invalid(self):
+        path = self.root / self.one
+        fields = ['id', 'sim_time_sec', 'frame_id', 'x_m', 'y_m', 'z_m', 'max_temp_c',
+                  'foot_pixel_u', 'foot_pixel_v', 'hot_pixels', 'edge_clipped',
+                  'waypoint_x_m', 'waypoint_y_m', 'waypoint_z_m', 'waypoint_frame_id']
+        with path.open('w', newline='', encoding='utf-8') as stream:
+            writer = csv.writer(stream)
+            writer.writerow(fields)
+            writer.writerow([1, 14.5, 'parrot1_odom', 4.029, -2.852, 2.1, 32.68, 303.5,
+                             170, 1392, False, 4.02, -2.85, -0.7, 'terrain_world'])
+            writer.writerow([2, 15.2, 'parrot1_odom', 6.0, 1.0, 1.3, 36, 305, 171, 1580,
+                             False, 6.0, 1.0, 'nan', 'terrain_world'])
+
+        first, second = read_mission(self.one, self.root)
+        self.assertEqual(first['z_m'], 2.1)
+        self.assertEqual(first['waypoint_z_m'], -0.7)
+        self.assertEqual(first['waypoint_frame_id'], 'terrain_world')
+        self.assertEqual(second['z_m'], 1.3)
+        self.assertNotIn('waypoint_frame_id', second)
 
     def test_list_sorted_and_filtered(self):
         self.assertEqual(list_missions(self.root), [self.one])

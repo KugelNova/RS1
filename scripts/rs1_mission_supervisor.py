@@ -166,8 +166,8 @@ class MissionSupervisor(Node):
             self.managed_start('thermal', ['ros2', 'run', PACKAGE, 'thermal_detector'])
         if 'target_localizer' not in names:
             self.managed_start('localizer', ['ros2', 'launch', PACKAGE,
-                '41068_target_localization.launch.py', 'require_human_shape:=false'])
-        self.reason = 'Thermal detector and localizer requested; recorder starts with SEARCH'
+                '41068_target_localization.launch.py'])
+        self.reason = 'Thermal candidate detector and human confirmation requested. The recorder starts with search.'
 
     def on_request(self, msg):
         try:

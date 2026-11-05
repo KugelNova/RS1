@@ -1,8 +1,7 @@
-"""Conservative, frame-aware confirmation for static thermal targets.
+"""Confirm spatially stable detections across distinct frames.
 
-This deliberately separates a thermal candidate from a confirmed rescue target.
-It does not classify people; it validates a stable world-coordinate observation.
-Uses only the Python standard library so association logic can be unit-tested.
+An optional required class limits which observations can confirm a track.
+An observed animal cancels a nearby pending human confirmation.
 """
 from collections import deque
 from statistics import median
@@ -13,7 +12,8 @@ class StableTargetTracker:
     def __init__(self, *, confirm_frames=6, confirm_span_s=0.65,
                  min_hot_pixels=100, min_bbox_height_px=24,
                  candidate_radius_m=0.80, max_scatter_m=0.45,
-                 dedup_radius_m=1.90, expire_s=2.0, require_unclipped=True):
+                 dedup_radius_m=1.90, expire_s=2.0, require_unclipped=True,
+                 required_classification=None):
         self.confirm_frames = int(confirm_frames)
         self.confirm_span_s = float(confirm_span_s)
         self.min_hot_pixels = int(min_hot_pixels)
@@ -23,6 +23,7 @@ class StableTargetTracker:
         self.dedup_radius_m = float(dedup_radius_m)
         self.expire_s = float(expire_s)
         self.require_unclipped = bool(require_unclipped)
+        self.required_classification = required_classification
         self.pending = []
         self.rejected = {'small': 0, 'clipped': 0, 'unstable': 0, 'duplicate': 0}
 
@@ -47,9 +48,22 @@ class StableTargetTracker:
             return []  # No frame timestamp: cannot verify distinct frames/duration.
         self.pending = [p for p in self.pending
                         if 0 <= stamp_sec - p['last_stamp'] <= self.expire_s]
+        animals = []
+        if self.required_classification == 'human':
+            animals = [obs['xyz'] for obs in observations if obs.get('classification') == 'animal']
+        if animals:
+            self.pending = [
+                p for p in self.pending
+                if all(self.distance(self.median_position(p['samples']), animal)
+                       > self.candidate_radius_m for animal in animals)
+            ]
         consumed = set()  # A component cannot count twice for the same candidate in one image.
         fresh = []
         for obs in observations:
+            if self.required_classification and obs.get('classification') != self.required_classification:
+                continue
+            if any(self.distance(obs['xyz'], animal) <= self.candidate_radius_m for animal in animals):
+                continue
             if obs['pixels'] < self.min_hot_pixels or obs['bbox_height'] < self.min_bbox_height_px:
                 self.rejected['small'] += 1
                 continue
@@ -87,7 +101,8 @@ class StableTargetTracker:
                 # Discard unstable samples and permit reconfirmation when view settles.
                 p['samples'] = deque(list(samples)[-2:], maxlen=24)
                 continue
-            result = dict(obs, xyz=m)
+            lidar_stamps = {s.get('lidar_stamp_ns') for s in samples} - {None}
+            result = dict(obs, xyz=m, lidar_frames=len(lidar_stamps))
             fresh.append(result)
         self.pending = [p for p in self.pending
                         if not any(self.distance(self.median_position(p['samples']), f['xyz'])

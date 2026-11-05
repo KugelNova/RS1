@@ -1,99 +1,144 @@
 #!/usr/bin/env python3
-"""RS1 thermal victim localizer, ROS 2 Humble.
-
-Reads the mono16 Gazebo thermal stream independently of the original detector,
-finds separated warm components, projects each estimated foot pixel onto a
-configured horizontal ground plane using timestamped TF, emits one alert per
-new location, and saves a per-mission CSV in ~/rescue_logs.
-
-This is an *estimated* localisation proof of concept. It isn't real GPS and
-cannot account for uneven terrain, occlusion or targets not touching ground.
-"""
+"""Confirm human rescue targets using paired thermal and RGB-D observations."""
 
 import csv
 from collections import deque
 from datetime import datetime, timezone
 import json
-import math
 import os
 import time
 
 import cv2
+import message_filters
 import numpy as np
-
 import rclpy
+from ament_index_python.packages import get_package_share_directory
+from geometry_msgs.msg import PoseStamped
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data, QoSProfile, ReliabilityPolicy, DurabilityPolicy
 from rclpy.time import Time
-from geometry_msgs.msg import PoseStamped
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, PointCloud2
 from std_msgs.msg import String
-from visualization_msgs.msg import Marker, MarkerArray
 from tf2_ros import Buffer, TransformListener, TransformException
+from visualization_msgs.msg import Marker, MarkerArray
 
-from target_geometry import pixel_to_ground
+from camera_fusion import decode_depth_image, match_rgbd_thermal, transform_point
+from lidar_target_fusion import decode_xyz_points, refine_human_position
+from rescue_alert import TARGET_ALERT_TOPIC, qos_profile_rescue_alert
+from rescue_population.ground_waypoint import GroundWaypoints
+from rgb_detection import RgbDetector
 from target_tracks import StableTargetTracker
+from thermal_processing import connected_hot_components, decode_mono16, raw_to_celsius
 from thermal_shape import classify_hot_silhouette
-from thermal_processing import decode_mono16, connected_hot_components, raw_to_celsius
+
+
+def rgb_as_bgr(image):
+    encoding = image.encoding.lower()
+    channels = {'rgb8': 3, 'bgr8': 3, 'rgba8': 4, 'bgra8': 4}.get(encoding)
+    if not channels or image.width < 1 or image.height < 1 or image.step < image.width * channels:
+        raise ValueError(f'Unsupported RGB image encoding or dimensions: {image.encoding!r}')
+    if len(image.data) < image.step * image.height:
+        raise ValueError('RGB image data is shorter than its declared row strides')
+    array = np.ndarray((image.height, image.width, channels), dtype=np.uint8,
+                       buffer=image.data, strides=(image.step, channels, 1))
+    if encoding == 'bgr8':
+        return array
+    conversions = {'rgb8': cv2.COLOR_RGB2BGR, 'rgba8': cv2.COLOR_RGBA2BGR,
+                   'bgra8': cv2.COLOR_BGRA2BGR}
+    return cv2.cvtColor(array, conversions[encoding])
+
+
+def pose_tuple(stamped):
+    translation = stamped.transform.translation
+    rotation = stamped.transform.rotation
+    return ((translation.x, translation.y, translation.z),
+            (rotation.x, rotation.y, rotation.z, rotation.w))
 
 
 class TargetLocalizer(Node):
     def __init__(self):
         super().__init__('target_localizer')
         self.declare_parameter('thermal_topic', '/parrot1/camera/thermal/image')
+        self.declare_parameter('rgb_topic', '/parrot1/camera/image')
+        self.declare_parameter('depth_topic', '/parrot1/camera/depth/image')
+        self.declare_parameter('lidar_topic', '/parrot1/rescue/lidar/points')
+        self.declare_parameter('lidar_frame', 'parrot1_rescue_lidar_link')
+        self.declare_parameter('ground_mesh', '')
+        self.declare_parameter('ground_frame', 'parrot1_odom')
         self.declare_parameter('camera_frame', 'parrot1_thermal_camera_link')
+        self.declare_parameter('rgb_frame', 'parrot1_camera_link')
         self.declare_parameter('fixed_frame', 'parrot1_odom')
         self.declare_parameter('horizontal_fov_rad', 0.610865)
-        self.declare_parameter('ground_z_m', 0.0)
+        self.declare_parameter('rgb_horizontal_fov_rad', 2.0944)
         self.declare_parameter('threshold_kelvin', 305.0)
-        self.declare_parameter('min_hot_pixels', 100)
-        self.declare_parameter('confirm_frames', 6)
-        self.declare_parameter('dedup_radius_m', 8)
-        self.declare_parameter('max_target_distance_m', 30.0)
+        self.declare_parameter('min_hot_pixels', 20)
+        self.declare_parameter('min_bbox_height_px', 8)
+        self.declare_parameter('confirm_frames', 5)
+        self.declare_parameter('confirm_span_s', 0.35)
+        self.declare_parameter('dedup_radius_m', 1.5)
         self.declare_parameter('output_directory', '~/rescue_logs')
-        self.declare_parameter('confirm_span_s', 0.65)
         self.declare_parameter('max_scatter_m', 0.45)
         self.declare_parameter('candidate_radius_m', 0.8)
-        self.declare_parameter('min_bbox_height_px', 24)
         self.declare_parameter('require_unclipped', True)
-        self.declare_parameter('require_human_shape', False)  # opt-in to preserve legacy tests
+        self.declare_parameter('require_human_shape', False)
 
         self.fixed_frame = self.get_parameter('fixed_frame').value
         self.camera_frame = self.get_parameter('camera_frame').value
-        self.hfov = float(self.get_parameter('horizontal_fov_rad').value)
-        self.ground_z = float(self.get_parameter('ground_z_m').value)
-        self.threshold_raw = int(round(float(self.get_parameter('threshold_kelvin').value) * 100))
-        self.min_pixels = int(self.get_parameter('min_hot_pixels').value)
-        self.max_distance = float(self.get_parameter('max_target_distance_m').value)
+        self.rgb_frame = self.get_parameter('rgb_frame').value
+        self.lidar_frame = self.get_parameter('lidar_frame').value
+        self.ground_frame = self.get_parameter('ground_frame').value
+        self.ground = None
+        ground_mesh = self.get_parameter('ground_mesh').value
+        if ground_mesh:
+            try:
+                self.ground = GroundWaypoints.from_mesh(ground_mesh)
+            except (OSError, ValueError) as exc:
+                self.get_logger().warning(f'Ground rescue waypoints unavailable: {exc}')
+        self.thermal_hfov = self.get_parameter('horizontal_fov_rad').value
+        self.rgb_hfov = self.get_parameter('rgb_horizontal_fov_rad').value
+        self.threshold_raw = round(self.get_parameter('threshold_kelvin').value * 100)
+        self.require_human_shape = self.get_parameter('require_human_shape').value
         self.tracker = StableTargetTracker(
-            confirm_frames=self.get_parameter('confirm_frames').value,
-            confirm_span_s=self.get_parameter('confirm_span_s').value,
+            confirm_frames=max(2, self.get_parameter('confirm_frames').value),
+            confirm_span_s=max(0.1, self.get_parameter('confirm_span_s').value),
             min_hot_pixels=self.get_parameter('min_hot_pixels').value,
             min_bbox_height_px=self.get_parameter('min_bbox_height_px').value,
             candidate_radius_m=self.get_parameter('candidate_radius_m').value,
             max_scatter_m=self.get_parameter('max_scatter_m').value,
             dedup_radius_m=self.get_parameter('dedup_radius_m').value,
-            require_unclipped=self.get_parameter('require_unclipped').value)
-        self.min_pixels = self.tracker.min_hot_pixels
-        self.require_human_shape = bool(self.get_parameter('require_human_shape').value)
-        self.last_shape_event = {}
+            expire_s=0.65,
+            require_unclipped=self.get_parameter('require_unclipped').value,
+            required_classification='human',
+        )
+        package_dir = get_package_share_directory('41068_ignition_bringup')
+        self.detector = RgbDetector(package_dir=package_dir)
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
-        self.frames = deque(maxlen=10)  # hold images briefly until pose TF catches up
+        self.frames = deque(maxlen=10)
+        self.lidar_scans = deque(maxlen=8)
+        self.create_subscription(PointCloud2, self.get_parameter('lidar_topic').value,
+                                 self.on_lidar, qos_profile_sensor_data)
+        self.last_frame_stamps = (0, 0, 0)
+        self.last_warning = 0.0
         self.targets = []
         self.next_id = 1
-        self.last_warning = 0.0
-        self.last_unsupported_format = None
 
-        self.create_subscription(
-            Image, self.get_parameter('thermal_topic').value,
-            self.on_image, qos_profile_sensor_data)
-        self.timer = self.create_timer(0.12, self.process_frames)
+        self.subscribers = [
+            message_filters.Subscriber(
+                self, Image, self.get_parameter(parameter).value,
+                qos_profile=qos_profile_sensor_data)
+            for parameter in ('thermal_topic', 'rgb_topic', 'depth_topic')
+        ]
+        self.synchronizer = message_filters.ApproximateTimeSynchronizer(
+            self.subscribers, queue_size=12, slop=0.055)
+        self.synchronizer.registerCallback(self.on_frames)
+        self.timer = self.create_timer(0.05, self.process_frames)
 
         self.pose_pub = self.create_publisher(PoseStamped, '/parrot1/rescue/target_pose', 10)
-        self.alert_pub = self.create_publisher(String, '/parrot1/rescue/target_alert', 10)
-        self.shape_pub = self.create_publisher(String, '/parrot1/rescue/shape_candidate', 10)
+        self.alert_pub = self.create_publisher(String, TARGET_ALERT_TOPIC, qos_profile_rescue_alert)
+        self.waypoint_pub = self.create_publisher(
+            PoseStamped, '/parrot1/rescue/waypoint', qos_profile_rescue_alert)
         latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE,
                              durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.marker_pub = self.create_publisher(MarkerArray, '/parrot1/rescue/markers', latched)
@@ -106,120 +151,169 @@ class TargetLocalizer(Node):
         self.csv_writer = csv.DictWriter(self.csv_file, fieldnames=[
             'id', 'sim_time_sec', 'frame_id', 'x_m', 'y_m', 'z_m',
             'max_temp_c', 'foot_pixel_u', 'foot_pixel_v', 'hot_pixels', 'edge_clipped',
-            'classification', 'shape_aspect_ratio', 'shape_score'])
+            'classification', 'confidence', 'detector_label', 'shape_aspect_ratio', 'shape_score',
+            'location_source', 'lidar_frames', 'waypoint_frame_id',
+            'waypoint_x_m', 'waypoint_y_m', 'waypoint_z_m'])
         self.csv_writer.writeheader()
         self.csv_file.flush()
-        self.get_logger().info(f'Localizer ready: fixed_frame={self.fixed_frame}; camera={self.camera_frame}')
-        self.get_logger().info(f'Saving detections to {self.csv_path}')
-        self.get_logger().info('Human-shape filter: %s' % ('ENABLED' if self.require_human_shape else 'DISABLED'))
         self.get_logger().info(
-            'Quality gate: %d distinct frames over >= %.2fs; min %d hot pixels; '
-            'unclipped=%s; dedup %.2fm' % (
-                self.tracker.confirm_frames, self.tracker.confirm_span_s,
-                self.tracker.min_hot_pixels, self.tracker.require_unclipped,
-                self.tracker.dedup_radius_m))
+            f'Human confirmation ready in {self.fixed_frame}. Saving confirmed alerts to {self.csv_path}')
 
     def warn_periodically(self, message):
         now = time.monotonic()
-        if now - self.last_warning > 3:
-            self.last_warning = now
+        if now - self.last_warning >= 3.0:
             self.get_logger().warning(message)
+            self.last_warning = now
 
-    def on_image(self, image):
-        if image.encoding.lower() != 'mono16':
-            if image.encoding != self.last_unsupported_format:
-                self.get_logger().warning(f'Expected mono16, received {image.encoding!r}; image ignored')
-                self.last_unsupported_format = image.encoding
+    def on_lidar(self, cloud):
+        stamp = Time.from_msg(cloud.header.stamp)
+        if stamp.nanoseconds > 0:
+            self.lidar_scans.append((stamp, cloud))
+
+    def lidar_in_rgb_frame(self, rgb_stamp):
+        nearby = [(abs(stamp.nanoseconds - rgb_stamp.nanoseconds), stamp, cloud)
+                  for stamp, cloud in self.lidar_scans]
+        for delay, stamp, cloud in sorted(nearby, key=lambda item: item[0]):
+            if delay > 130_000_000:
+                break
+            try:
+                tf = self.tf_buffer.lookup_transform_full(
+                    self.rgb_frame, rgb_stamp, self.lidar_frame, stamp, self.fixed_frame)
+            except TransformException:
+                continue
+            try:
+                return stamp, decode_xyz_points(cloud), pose_tuple(tf)
+            except ValueError as exc:
+                self.warn_periodically(f'Ignoring invalid rescue LiDAR cloud: {exc}')
+        return None
+
+    def on_frames(self, thermal, rgb, depth):
+        thermal_stamp, rgb_stamp, depth_stamp = (
+            Time.from_msg(image.header.stamp) for image in (thermal, rgb, depth))
+        # RGB and depth are produced by the same sensor. Avoid using a depth image
+        # from a different exposure for projection even if thermal arrived nearby.
+        if abs(rgb_stamp.nanoseconds - depth_stamp.nanoseconds) > 5_000_000:
             return
-        self.frames.append(image)
+        stamps = (thermal_stamp.nanoseconds, rgb_stamp.nanoseconds, depth_stamp.nanoseconds)
+        if any(stamp <= 0 for stamp in stamps):
+            return
+        self.frames.append((thermal, rgb, depth, thermal_stamp, rgb_stamp, stamps, time.monotonic()))
 
     def process_frames(self):
         if not self.frames:
             return
-        image = self.frames[0]
-        stamp = Time.from_msg(image.header.stamp)
-        if stamp.nanoseconds == 0:
-            # Static only: images without a timestamp can't be localised accurately during movement.
-            self.warn_periodically('Thermal image has a zero timestamp; using latest pose (stationary testing only)')
-            stamp = Time()
+        thermal, rgb, depth, thermal_stamp, rgb_stamp, stamps, queued_at = self.frames[0]
+        if any(stamp <= previous for stamp, previous in zip(stamps, self.last_frame_stamps)):
+            self.frames.popleft()
+            return
         try:
-            tf = self.tf_buffer.lookup_transform(self.fixed_frame, self.camera_frame, stamp)
+            rgb_to_fixed = self.tf_buffer.lookup_transform(self.fixed_frame, self.rgb_frame, rgb_stamp)
+            rgb_to_thermal = self.tf_buffer.lookup_transform_full(
+                self.camera_frame, thermal_stamp, self.rgb_frame, rgb_stamp, self.fixed_frame)
         except TransformException as exc:
-            self.warn_periodically(f'Waiting for TF {self.fixed_frame} <- {self.camera_frame}: {exc}')
+            if time.monotonic() - queued_at > 1.0:
+                self.frames.popleft()
+                self.warn_periodically(f'Dropping synchronized images without camera TF: {exc}')
             return
         self.frames.popleft()
+        self.last_frame_stamps = stamps
         try:
-            arr = decode_mono16(image)
-            components, labels, stats = connected_hot_components(arr, self.threshold_raw)
+            thermal_image = decode_mono16(thermal)
+            components, labels, stats = connected_hot_components(thermal_image, self.threshold_raw)
+            if components <= 1:
+                return
+            depth_image = decode_depth_image(depth)
+            if (rgb.height, rgb.width) != depth_image.shape:
+                raise ValueError('RGB and registered depth images have different dimensions')
+            detections = self.detector.detect(rgb_as_bgr(rgb))
+            evidence = match_rgbd_thermal(
+                depth_image, detections, labels,
+                rgb_to_thermal=pose_tuple(rgb_to_thermal), rgb_to_fixed=pose_tuple(rgb_to_fixed),
+                rgb_hfov=self.rgb_hfov, thermal_hfov=self.thermal_hfov)
         except (ValueError, TypeError, cv2.error) as exc:
-            self.warn_periodically(f'Cannot decode thermal image: {exc}')
+            self.warn_periodically(f'Cannot process synchronized camera images: {exc}')
             return
 
-        tr = tf.transform.translation
-        q = tf.transform.rotation
-        origin = (tr.x, tr.y, tr.z)
-        quaternion = (q.x, q.y, q.z, q.w)
         observations = []
+        lidar = None
+        if any(match['classification'] == 'human' for match in evidence.values()):
+            lidar = self.lidar_in_rgb_frame(rgb_stamp)
+        for component, match in evidence.items():
+            left, top, width, height, count = map(int, stats[component])
+            mask = labels[top:top + height, left:left + width] == component
+            shape = classify_hot_silhouette(mask) if match['classification'] == 'human' else None
+            if self.require_human_shape and shape and shape['classification'] != 'human_like':
+                continue
+            foot_rows, foot_columns = np.nonzero(mask[-4:])
+            foot_u = left + float(foot_columns.mean()) if foot_rows.size else left + width / 2.0
+            clipped = (left == 0 or top == 0 or left + width >= thermal.width
+                       or top + height >= thermal.height)
+            if lidar is not None and match['classification'] == 'human' and not clipped:
+                scan_stamp, points, lidar_to_rgb = lidar
+                refined = refine_human_position(
+                    match['xyz'], points, depth_image, labels, component,
+                    lidar_to_rgb=lidar_to_rgb, rgb_to_thermal=pose_tuple(rgb_to_thermal),
+                    rgb_to_fixed=pose_tuple(rgb_to_fixed),
+                    lidar_stamp_s=scan_stamp.nanoseconds * 1e-9,
+                    rgb_stamp_s=rgb_stamp.nanoseconds * 1e-9,
+                    rgb_hfov=self.rgb_hfov, thermal_hfov=self.thermal_hfov)
+                if refined is not None:
+                    match['xyz'] = refined['xyz']
+                    match['lidar_stamp_ns'] = scan_stamp.nanoseconds
 
-        for component in range(1, components):  # 0 is background
-            left, top, width, height, count = [int(s) for s in stats[component]]
-            if count < self.min_pixels:
-                continue
-            shape = classify_hot_silhouette(labels[top:top+height, left:left+width] == component)
-            if self.require_human_shape and shape['classification'] != 'human_like':
-                stamp_sec = image.header.stamp.sec + image.header.stamp.nanosec * 1e-9
-                self.publish_shape_event(shape, (left, top, width, height), stamp_sec)
-                continue
-            bottom_row = top + height - 1
-            # Approximate ground-contact pixel: mean of the lowest 4 hot-pixel rows.
-            # More accurate than the centroid for a standing target, but not exact.
-            y0 = max(top, bottom_row - 3)
-            strip = labels[y0:bottom_row + 1, left:left + width]
-            ys, xs = np.where(strip == component)
-            foot_u = float(left + xs.mean()) if len(xs) else left + width / 2.0
-            foot_v = float(bottom_row)
-            estimate = pixel_to_ground(
-                foot_u, foot_v, image.width, image.height, self.hfov,
-                origin, quaternion, self.ground_z, self.max_distance)
-            if estimate is None:
-                continue
-            hottest = int(arr[labels == component].max())
-            temp_c = raw_to_celsius(hottest)
-            edge_clipped = (left == 0 or top == 0 or left + width >= image.width or top + height >= image.height)
+            hottest = thermal_image[top:top + height, left:left + width][mask].max()
             observations.append(dict(
-                xyz=estimate, temp_c=temp_c, foot_u=foot_u, foot_v=foot_v,
-                pixels=count, bbox_height=height, edge_clipped=edge_clipped, shape=shape))
+                match, temp_c=raw_to_celsius(hottest), foot_u=foot_u, foot_v=top + height - 1,
+                pixels=count, bbox_height=height, edge_clipped=clipped, shape=shape))
 
-        stamp_sec = image.header.stamp.sec + image.header.stamp.nanosec * 1e-9
         for confirmed in self.tracker.observe(
-                observations, stamp_sec, [t['xyz'] for t in self.targets]):
-            self.add_target(
-                confirmed['xyz'], confirmed['temp_c'],
-                confirmed['foot_u'], confirmed['foot_v'],
-                confirmed['pixels'], confirmed['edge_clipped'], image.header.stamp, confirmed.get('shape'))
+                observations, thermal_stamp.nanoseconds * 1e-9, [t['xyz'] for t in self.targets]):
+            self.add_target(confirmed, thermal.header.stamp)
 
-    def publish_shape_event(self, metrics, bbox, stamp_sec):
-        # Throttle diagnostics per image region to avoid flooding PyQt / ROS.
-        key = (metrics['classification'], bbox[0] // 40, bbox[1] // 40)
-        if stamp_sec - self.last_shape_event.get(key, -1e9) < 3.0:
-            return
-        self.last_shape_event[key] = stamp_sec
-        payload = dict(metrics, bbox_xywh=list(bbox), sim_time_sec=round(stamp_sec, 3))
-        self.shape_pub.publish(String(data=json.dumps(payload)))
+    def ground_waypoint(self, xyz, stamp):
+        if self.ground is None:
+            return None
+        if self.ground_frame != self.fixed_frame:
+            try:
+                tf = self.tf_buffer.lookup_transform(
+                    self.ground_frame, self.fixed_frame, Time.from_msg(stamp))
+                xyz = transform_point(xyz, pose_tuple(tf))
+            except TransformException as exc:
+                self.warn_periodically(f'Cannot transform rescue target into the ground frame: {exc}')
+                return None
+        return self.ground.at(xyz)
 
-    def add_target(self, xyz, temp_c, u, v, pixels, clipped, stamp, shape=None):
+    def add_target(self, detection, stamp):
         target_id = self.next_id
         self.next_id += 1
-        self.targets.append({'id': target_id, 'xyz': xyz})
+        xyz = detection['xyz']
+        waypoint = self.ground_waypoint(xyz, stamp)
+        self.targets.append({'id': target_id, 'xyz': xyz, 'waypoint': waypoint})
+        lidar_frames = detection['lidar_frames']
         stamp_sec = stamp.sec + stamp.nanosec * 1e-9
+        shape = detection['shape']
         record = {
             'id': target_id, 'sim_time_sec': f'{stamp_sec:.3f}', 'frame_id': self.fixed_frame,
             'x_m': f'{xyz[0]:.3f}', 'y_m': f'{xyz[1]:.3f}', 'z_m': f'{xyz[2]:.3f}',
-            'max_temp_c': f'{temp_c:.2f}', 'foot_pixel_u': f'{u:.1f}',
-            'foot_pixel_v': f'{v:.1f}', 'hot_pixels': pixels, 'edge_clipped': clipped,
-            'classification': 'human_like' if self.require_human_shape else 'thermal_unverified',
-            'shape_aspect_ratio': (f"{shape['aspect_ratio']:.3f}" if shape else ''),
-            'shape_score': (str(shape['shape_score']) if shape else '')}
+            'max_temp_c': f"{detection['temp_c']:.2f}", 'foot_pixel_u': f"{detection['foot_u']:.1f}",
+            'foot_pixel_v': f"{detection['foot_v']:.1f}", 'hot_pixels': detection['pixels'],
+            'edge_clipped': detection['edge_clipped'], 'classification': detection['classification'],
+            'confidence': round(detection['confidence'], 3), 'detector_label': detection['label'],
+            'shape_aspect_ratio': f"{shape['aspect_ratio']:.3f}" if shape else '',
+            'shape_score': str(shape['shape_score']) if shape else '',
+            'location_source': 'rgbd_lidar' if lidar_frames else 'rgbd',
+            'lidar_frames': lidar_frames,
+        }
+        if waypoint is not None:
+            record.update(
+                waypoint_frame_id=self.ground_frame,
+                waypoint_x_m=waypoint[0], waypoint_y_m=waypoint[1], waypoint_z_m=waypoint[2])
+            ground_pose = PoseStamped()
+            ground_pose.header.frame_id = self.ground_frame
+            ground_pose.header.stamp = stamp
+            ground_pose.pose.position.x, ground_pose.pose.position.y, ground_pose.pose.position.z = waypoint
+            ground_pose.pose.orientation.w = 1.0
+            self.waypoint_pub.publish(ground_pose)
         self.csv_writer.writerow(record)
         self.csv_file.flush()
 
@@ -229,14 +323,15 @@ class TargetLocalizer(Node):
         pose.pose.position.x, pose.pose.position.y, pose.pose.position.z = xyz
         pose.pose.orientation.w = 1.0
         self.pose_pub.publish(pose)
-
-        alert = String()
-        alert.data = json.dumps(record)
-        self.alert_pub.publish(alert)
+        self.alert_pub.publish(String(data=json.dumps(record)))
         self.publish_markers()
         self.get_logger().info(
-            f'TARGET #{target_id} PING: ({xyz[0]:.2f}, {xyz[1]:.2f}, {xyz[2]:.2f}) '
-            f'[{self.fixed_frame}], max={temp_c:.2f} C, edge_clipped={clipped}, SAVED')
+            f'CONFIRMED HUMAN #{target_id}: ({xyz[0]:.2f}, {xyz[1]:.2f}, {xyz[2]:.2f}) '
+            f'[{self.fixed_frame}], {lidar_frames} matched LiDAR scans')
+        if waypoint is not None:
+            self.get_logger().info(
+                f'Ground waypoint #{target_id}: ({waypoint[0]:.2f}, {waypoint[1]:.2f}, '
+                f'{waypoint[2]:.2f}) [{self.ground_frame}]')
 
     def publish_markers(self):
         msg = MarkerArray()
@@ -267,8 +362,22 @@ class TargetLocalizer(Node):
             label.pose.orientation.w = 1.0
             label.scale.z = 0.5
             label.color.r = label.color.g = label.color.b = label.color.a = 1.0
-            label.text = f'TARGET #{target["id"]}'
+            label.text = f'HUMAN #{target["id"]}'
             msg.markers.append(label)
+
+            if target['waypoint'] is not None:
+                waypoint = Marker()
+                waypoint.header.frame_id = self.ground_frame
+                waypoint.header.stamp = stamp
+                waypoint.ns = 'rescue_ground_waypoints'
+                waypoint.id = target['id']
+                waypoint.type = Marker.CYLINDER
+                waypoint.pose.position.x, waypoint.pose.position.y, waypoint.pose.position.z = target['waypoint']
+                waypoint.pose.position.z += 0.04
+                waypoint.pose.orientation.w = 1.0
+                waypoint.scale.x, waypoint.scale.y, waypoint.scale.z = 0.8, 0.8, 0.08
+                waypoint.color.r, waypoint.color.g, waypoint.color.b, waypoint.color.a = 0.1, 0.9, 0.7, 1.0
+                msg.markers.append(waypoint)
         self.marker_pub.publish(msg)
 
     def destroy_node(self):

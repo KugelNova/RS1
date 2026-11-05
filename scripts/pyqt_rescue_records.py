@@ -3,6 +3,7 @@
 Used by scripts/drone_ui.py. Safe to import without ROS or PyQt5.
 """
 import csv
+import math
 import os
 import re
 from pathlib import Path
@@ -58,6 +59,16 @@ def read_mission(name, directory=None):
                     record[field] = float(line[field])
                 if not record['frame_id']:
                     continue
+                # Old logs and targets outside terrain_new may have no waypoint.
+                waypoint_frame = (line.get('waypoint_frame_id') or '').strip()
+                if waypoint_frame:
+                    fields = ('waypoint_x_m', 'waypoint_y_m', 'waypoint_z_m')
+                    try:
+                        waypoint = {field: float(line[field]) for field in fields}
+                    except (KeyError, TypeError, ValueError, OverflowError):
+                        waypoint = {}
+                    if waypoint and all(map(math.isfinite, waypoint.values())):
+                        record.update(waypoint, waypoint_frame_id=waypoint_frame)
                 records.append(record)
             except (KeyError, ValueError, TypeError, AttributeError):
                 continue

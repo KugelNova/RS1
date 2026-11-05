@@ -1,3 +1,4 @@
+from collections import deque
 import os
 import threading
 import time
@@ -7,9 +8,13 @@ from rclpy.qos import qos_profile_sensor_data
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import Image, LaserScan
+from std_msgs.msg import String
 from nav_msgs.msg import Odometry
 import cv2
 import numpy as np
+
+from rescue_alert import TARGET_ALERT_TOPIC, parse_confirmed_alert, qos_profile_rescue_alert
+
 
 class RescueDroneNode(Node):
     def __init__(self):
@@ -29,7 +34,9 @@ class RescueDroneNode(Node):
         self.flight_state = "STOPPED / LEVELED"
         
         # Detection State Variables
+        self.human_count = 0
         self.human_detected = False
+        self.recent_rescue_alerts = deque(maxlen=qos_profile_rescue_alert.depth)
         self.detect_x = 0.0
         self.detect_y = 0.0
         self.last_snap_time = 0.0
@@ -50,6 +57,25 @@ class RescueDroneNode(Node):
         self.create_subscription(Image, '/parrot1/camera/thermal/image', self.thermal_cb, qos_profile_sensor_data)
         self.create_subscription(Odometry, '/parrot1/odometry', self.odom_cb, 10)
         self.create_subscription(LaserScan, '/parrot1/scan', self.lidar_cb, qos_profile_sensor_data)
+        self.create_subscription(
+            String, TARGET_ALERT_TOPIC, self.rescue_alert_cb, qos_profile_rescue_alert)
+
+    @property
+    def latest_rescue_alert(self):
+        return self.recent_rescue_alerts[-1][1] if self.recent_rescue_alerts else None
+
+    def rescue_alert_cb(self, msg):
+        try:
+            alert = parse_confirmed_alert(msg.data)
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            self.get_logger().warning(f'Ignored malformed rescue alert: {exc}')
+            return
+        if alert is None:
+            return
+        self.detect_x, self.detect_y = alert['x_m'], alert['y_m']
+        self.human_count += 1
+        self.recent_rescue_alerts.append((self.human_count, alert))
+        self.human_detected = True
 
     def set_command(self, lx=0.0, ly=0.0, lz=0.0, ax=0.0, ay=0.0, az=0.0):
         self.is_navigating = False 
@@ -202,39 +228,8 @@ class RescueDroneNode(Node):
             img_normalized = cv2.normalize(clipped_vis, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
             color_img = cv2.applyColorMap(img_normalized, cv2.COLORMAP_INFERNO)
             
+            # --- 3. Fire Detection (Thermal Confirmation via Sensor Fusion) ---
             kernel = np.ones((15, 15), np.uint8)
-            blurred = cv2.GaussianBlur(img, (15, 15), 0)
-            
-            # --- 3. Human Detection ---
-            human_mask = cv2.inRange(blurred, 29000, 32000)
-            fire_halo = cv2.dilate(fire_mask_base, kernel, iterations=6)
-            human_mask = cv2.bitwise_and(human_mask, cv2.bitwise_not(fire_halo))
-            
-            human_thresh = cv2.morphologyEx(human_mask, cv2.MORPH_CLOSE, kernel)
-            human_thresh = cv2.dilate(human_thresh, kernel, iterations=2)
-            human_contours, _ = cv2.findContours(human_thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-            detected_this_frame = False
-            target_count = 0
-            for contour in human_contours:
-                if cv2.contourArea(contour) > 400:
-                    detected_this_frame = True
-                    target_count += 1
-                    x, y, w, h = cv2.boundingRect(contour)
-                    cv2.rectangle(color_img, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    cv2.drawMarker(color_img, (x + w // 2, y + h // 2), (0, 255, 0), cv2.MARKER_CROSS, 10, 1)
-                    cv2.putText(color_img, f"HUMAN #{target_count}", (x, max(28, y - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 255, 0), 1, cv2.LINE_AA)
-            
-            self.human_count = target_count
-            self.human_detected = detected_this_frame
-
-            if detected_this_frame:
-                self.detect_x = self.x
-                self.detect_y = self.y
-                cv2.rectangle(color_img, (0, 0), (color_img.shape[1], 20), (0, 0, 0), -1)
-                cv2.putText(color_img, f"TARGETS: {target_count} | GPS: X:{self.x:.1f} Y:{self.y:.1f}", (6, 14), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 255, 0), 1, cv2.LINE_AA)
-
-            # --- 4. Fire Detection (Thermal Confirmation via Sensor Fusion) ---
             fire_thresh_hot = cv2.morphologyEx(fire_mask_base, cv2.MORPH_CLOSE, kernel)
             fire_thresh_hot = cv2.dilate(fire_thresh_hot, kernel, iterations=2)
             fire_contours, _ = cv2.findContours(fire_thresh_hot, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)

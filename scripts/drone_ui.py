@@ -3,7 +3,6 @@
 import sys
 import csv
 import json
-import math as _math
 from collections import deque
 import math
 import time
@@ -56,6 +55,9 @@ from PyQt5.QtWidgets import (
 
 
 from pyqt_rescue_records import rescue_log_dir, list_missions, read_mission, mission_path
+from rescue_alert import (
+    TARGET_ALERT_TOPIC, format_ground_waypoint, parse_confirmed_alert, qos_profile_rescue_alert,
+)
 
 # RS1_PYQT_OPERATOR_DASHBOARD_V2
 
@@ -112,9 +114,9 @@ class DroneUiNode(Node):
 
         self.create_subscription(
             String,
-            '/parrot1/rescue/target_alert',
+            TARGET_ALERT_TOPIC,
             self.rescue_alert_callback,
-            10
+            qos_profile_rescue_alert
         )
 
         self.create_subscription(
@@ -163,23 +165,12 @@ class DroneUiNode(Node):
 
     def rescue_alert_callback(self, msg):
         try:
-            obj = json.loads(msg.data)
-            alert = {
-                'id': int(obj['id']),
-                'frame_id': str(obj['frame_id']),
-                'x_m': float(obj['x_m']),
-                'y_m': float(obj['y_m']),
-                'z_m': float(obj['z_m']),
-                'max_temp_c': float(obj['max_temp_c']),
-                'edge_clipped': str(obj.get('edge_clipped', 'False')).lower() == 'true',
-            }
-            if not alert['frame_id'] or not all(
-                _math.isfinite(alert[k]) for k in ('x_m', 'y_m', 'z_m', 'max_temp_c')
-            ):
-                raise ValueError('Invalid rescue alert data')
+            alert = parse_confirmed_alert(msg.data)
+        except (KeyError, TypeError, ValueError, OverflowError) as exc:
+            self.get_logger().warning(f'Ignored malformed rescue alert: {exc}')
+            return
+        if alert is not None:
             self.live_rescue_alerts.append(alert)
-        except (ValueError, TypeError, KeyError, json.JSONDecodeError) as exc:
-            self.get_logger().warning(f'Ignored invalid rescue alert: {exc}')
 
 
     # --------------------------------------------------
@@ -601,6 +592,7 @@ class DroneUI(QWidget):
         self.rescue_alert_label = QLabel('No live rescue alerts')
         self.rescue_alert_label.setObjectName('alertIdle')
         self.rescue_alert_label.setWordWrap(True)
+        self.rescue_alert_label.setTextFormat(Qt.PlainText)
         alert_row.addWidget(self.rescue_alert_label, 1)
         self.acknowledge_button = QPushButton('Acknowledge')
         self.acknowledge_button.setEnabled(False)
@@ -798,10 +790,11 @@ class DroneUI(QWidget):
         bar.addWidget(goto_btn)
         layout.addLayout(bar)
 
-        self.rescue_table = QTableWidget(0, 9)
+        self.rescue_table = QTableWidget(0, 11)
         self.rescue_table.setHorizontalHeaderLabels([
-            'ID', 'Sim time (s)', 'X (m)', 'Y (m)', 'Z (m)',
-            'Max °C', 'Frame', 'Edge clipped', 'Hot pixels'
+            'ID', 'Sim time (s)', 'Body X (m)', 'Body Y (m)', 'Body Z (m)',
+            'Max °C', 'Frame', 'Edge clipped', 'Hot pixels',
+            'Ground waypoint X, Y, Z (m)', 'Waypoint frame',
         ])
         self.rescue_table.setAlternatingRowColors(True)
         self.rescue_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -814,6 +807,7 @@ class DroneUI(QWidget):
         self.rescue_table.setColumnWidth(1, 105)
         for col in (2, 3, 4, 5):
             self.rescue_table.setColumnWidth(col, 80)
+        self.rescue_table.setColumnWidth(9, 205)
         layout.addWidget(self.rescue_table, 1)
         self.rescue_path_label = QLabel('Logs: ' + str(rescue_log_dir()))
         self.rescue_path_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
@@ -844,7 +838,7 @@ class DroneUI(QWidget):
         self.start_supervisor_button.clicked.connect(self._start_supervisor)
         row.addWidget(self.start_supervisor_button)
         self.sensors_start_button = QPushButton('Start Sensors')
-        self.sensors_start_button.setToolTip('Start thermal detector and localizer. Recorder starts only with search.')
+        self.sensors_start_button.setToolTip('Start thermal candidate detection and human confirmation. The recorder starts with search.')
         self.sensors_start_button.clicked.connect(self._start_sensors)
         row.addWidget(self.sensors_start_button)
         self.sensors_stop_button = QPushButton('Stop Sensors')
@@ -985,17 +979,20 @@ class DroneUI(QWidget):
         self.camera_pages.setCurrentIndex(idx)
 
     # ------------------------------------------------------------------
-    # Rescue alerts and read-only history. Existing CSV format preserved.
+    # Rescue alerts and read-only mission history.
     # ------------------------------------------------------------------
     def consume_rescue_alerts(self):
         while self.node.live_rescue_alerts:
             alert = self.node.live_rescue_alerts.popleft()
             self.live_alert_count += 1
+            waypoint = format_ground_waypoint(alert)
             self.rescue_alert_label.setText(
-                f'NEW TARGET #{alert["id"]}  |  '
+                f'CONFIRMED HUMAN #{alert["id"]}  |  '
                 f'X {alert["x_m"]:.2f}  Y {alert["y_m"]:.2f}  Z {alert["z_m"]:.2f} m  |  '
                 f'{alert["max_temp_c"]:.1f}°C  [{alert["frame_id"]}]'
                 + ('  EDGE CLIPPED' if alert['edge_clipped'] else '')
+                + (f'\n{waypoint}' if waypoint else '')
+                + ('\nLocation refined with LiDAR' if alert.get('location_source') == 'rgbd_lidar' else '')
             )
             self.rescue_alert_label.setObjectName('alertActive')
             self._refresh_alert_style()
@@ -1057,12 +1054,16 @@ class DroneUI(QWidget):
             self.current_rescue_records = records
             self.rescue_table.setRowCount(len(records))
             for i, record in enumerate(records):
+                waypoint_frame = record.get('waypoint_frame_id', '')
+                waypoint_xyz = ', '.join(
+                    f'{record[field]:.3f}' for field in ('waypoint_x_m', 'waypoint_y_m', 'waypoint_z_m')
+                ) if waypoint_frame else ''
                 columns = (
                     str(record['id']), f'{record["sim_time_sec"]:.3f}',
                     f'{record["x_m"]:.3f}', f'{record["y_m"]:.3f}',
                     f'{record["z_m"]:.3f}', f'{record["max_temp_c"]:.2f}',
                     record['frame_id'], 'YES' if record['edge_clipped'] else 'NO',
-                    str(record['hot_pixels']),
+                    str(record['hot_pixels']), waypoint_xyz, waypoint_frame,
                 )
                 for j, value in enumerate(columns):
                     self.rescue_table.setItem(i, j, QTableWidgetItem(value))
@@ -1082,6 +1083,9 @@ class DroneUI(QWidget):
         copied = (f'Target #{record["id"]}: '
                   f'({record["x_m"]:.3f}, {record["y_m"]:.3f}, {record["z_m"]:.3f}) m '
                   f'[{record["frame_id"]}], sim time={record["sim_time_sec"]:.3f}s')
+        waypoint = format_ground_waypoint(record, decimals=3)
+        if waypoint:
+            copied += f'\n{waypoint}'
         QApplication.clipboard().setText(copied)
 
     def open_rescue_csv(self):

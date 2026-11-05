@@ -35,6 +35,10 @@ def generate_launch_description():
         description='Flag to launch Nav2. Nav2 also starts SLAM.',
     ))
     ld.add_action(DeclareLaunchArgument(
+        'human_detection', default_value='True',
+        description='Confirm rescue targets with synchronized Parrot RGB-D and thermal images',
+    ))
+    ld.add_action(DeclareLaunchArgument(
         'world',
         default_value='simple_trees',
         description='Which world to load',
@@ -83,6 +87,7 @@ def generate_launch_description():
             'terrain_roughness': LaunchConfiguration('terrain_roughness'),
             'spawn_seed': LaunchConfiguration('spawn_seed'),
             'animal_species': LaunchConfiguration('animal_species'),
+            'human_detection': LaunchConfiguration('human_detection'),
             'husky': 'False',
             'parrot': 'True',
         }.items(),

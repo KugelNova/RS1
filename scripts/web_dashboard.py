@@ -43,6 +43,7 @@ HTML_TEMPLATE = """
       .status-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1.1rem; }
       .status-val { color: #00ffcc; font-weight: bold; font-family: monospace; font-size: 1.2rem;}
       .status-alert { color: #ff3333; font-weight: bold; font-family: monospace; font-size: 1.2rem;}
+      .rescue-alert { color: #ffa870; font-size: 0.85rem; margin-bottom: 8px; white-space: pre-line; }
       
       /* Accordion Menus */
       .accordion { background-color: #2a2a2a; color: #fff; cursor: pointer; padding: 15px; width: 100%; border: 1px solid #444; border-radius: 6px; text-align: left; outline: none; font-size: 16px; font-weight: bold; transition: 0.3s; margin-bottom: 5px; }
@@ -83,7 +84,8 @@ HTML_TEMPLATE = """
         <!-- Top Status Area -->
         <div class="status-panel">
             <h3>Radar & Telemetry</h3>
-            <div class="status-row"><span>Humans Detected:</span> <span class="status-val" id="det-humans">0</span></div>
+            <div class="status-row"><span>Confirmed Humans:</span> <span class="status-val" id="det-humans">0</span></div>
+            <div class="rescue-alert" id="latest-rescue-alert" role="status" hidden></div>
             <div class="status-row"><span>Hazard Warning:</span> <span class="status-val" id="det-hazards">NONE</span></div>
             <div class="status-row"><span>Position X:</span> <span class="status-val" id="pos-x">0.00</span></div>
             <div class="status-row"><span>Position Y:</span> <span class="status-val" id="pos-y">0.00</span></div>
@@ -297,6 +299,26 @@ HTML_TEMPLATE = """
                     document.getElementById('pos-z').innerText = data.z.toFixed(2);
                     
                     document.getElementById('det-humans').innerText = data.human_count;
+                    const alert = data.rescue_alert;
+                    if (alert) {
+                        const alertEl = document.getElementById('latest-rescue-alert');
+                        let message = 'Confirmed human #' + alert.id + ' at X ' +
+                            alert.x_m.toFixed(2) + ', Y ' + alert.y_m.toFixed(2) +
+                            ', Z ' + alert.z_m.toFixed(2) + ' m (' + alert.frame_id + ')';
+                        if (alert.waypoint_frame_id) {
+                            message += '\\nGround waypoint at X ' + alert.waypoint_x_m.toFixed(2) +
+                                ', Y ' + alert.waypoint_y_m.toFixed(2) +
+                                ', Z ' + alert.waypoint_z_m.toFixed(2) +
+                                ' m (' + alert.waypoint_frame_id + ')';
+                        }
+                        if (alert.location_source === 'rgbd_lidar') {
+                            message += '\\nLocation refined with LiDAR';
+                        }
+                        if (alertEl.textContent !== message) {
+                            alertEl.hidden = false;
+                            alertEl.textContent = message;
+                        }
+                    }
                     drawAttitude(data.roll, data.pitch, data.yaw);
                     
                     const hazEl = document.getElementById('det-hazards');
@@ -362,7 +384,8 @@ def telemetry():
         "roll": ros_node.roll, "pitch": ros_node.pitch, "yaw": ros_node.yaw,
         "state": ros_node.flight_state,
         "navigating": ros_node.is_navigating,
-        "human_count": getattr(ros_node, 'human_count', 0),
+        "human_count": ros_node.human_count,
+        "rescue_alert": ros_node.latest_rescue_alert,
         "hazard": hazard
     })
 

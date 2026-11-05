@@ -19,7 +19,7 @@ class EntitySpec:
     temperature_k: float
 
 
-HUMAN_SPEC = EntitySpec("Human/Person.obj", 1.8, 310.15)
+HUMAN_SPEC = EntitySpec("models/Human/Person.obj", 1.8, 310.15)
 ANIMAL_SPECS = {
     "bear": EntitySpec("models/animals/bear/bear.obj", 1.4, 310.15),
     "deer": EntitySpec("models/animals/deer/deermodel.obj", 1.65, 311.15),

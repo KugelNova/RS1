@@ -84,6 +84,13 @@
     </inertial>
   </link>
 
+  <joint name="${prefix}rescue_lidar_joint" type="fixed">
+    <parent link="${prefix}base_link"/>
+    <child link="${prefix}rescue_lidar_link"/>
+    <origin xyz="0.28 0 0.18" rpy="0 0.959931 0"/>
+  </joint>
+  <link name="${prefix}rescue_lidar_link"/>
+
   <joint name="${prefix}camera_joint" type="fixed">
     <origin xyz="0.25 0.0 0.25" rpy="0 0.785398 0"/>
     <parent link="${prefix}base_link"/>

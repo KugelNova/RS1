@@ -40,6 +40,14 @@
   gz_type_name: "gz.msgs.PointCloudPacked"
   direction: GZ_TO_ROS
 
+# Downward 3D LiDAR for rescue localization
+- ros_topic_name: "rescue/lidar/points"
+  gz_topic_name: "/model/parrot1/rescue/lidar/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+  lazy: true
+
 # Camera: RGB
 - ros_topic_name: "camera/image"
   gz_topic_name: "/model/parrot1/camera/image"

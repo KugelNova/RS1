@@ -16,7 +16,6 @@ install(
     config
     launch
     models
-    Human
     urdf_husky
     worlds
     urdf_parrot
@@ -72,9 +71,14 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Pure shared thermal helpers for detector and localizer; no ROS executable.
+# Shared perception and alert helpers imported by installed executables.
 install(
-  FILES scripts/thermal_processing.py
+  FILES
+    scripts/thermal_processing.py
+    scripts/camera_fusion.py
+    scripts/lidar_target_fusion.py
+    scripts/rgb_detection.py
+    scripts/rescue_alert.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
@@ -89,6 +93,12 @@ if(BUILD_TESTING)
     )
   endforeach()
   ament_add_pytest_test(generated_ground tests/test_generated_ground.py TIMEOUT 90)
+
+  ament_add_pytest_test(camera_fusion tests/test_camera_fusion.py)
+  ament_add_pytest_test(lidar_target_fusion tests/test_lidar_target_fusion.py)
+  ament_add_pytest_test(ground_waypoint tests/test_ground_waypoint.py)
+  ament_add_pytest_test(target_tracks tests/test_target_tracks.py)
+  ament_add_pytest_test(rgb_detection tests/test_rgb_detection.py TIMEOUT 90)
 
 endif()
 

@@ -209,6 +209,12 @@ def add_rviz_instance(
     # Each RViz process is itself placed in the robot namespace so the Nav2 RViz
     # panel resolves relative action/service names such as navigate_to_pose and
     # lifecycle_manager_navigation to the correct robot.
+    arguments = ['-d', PathJoinSubstitution([config_path, rviz_config])]
+    if robot_namespace == 'parrot1':
+        arguments.extend(['-f', PythonExpression([
+            "'parrot1_map' if (", *_is_true_expression('slam'), ' or ',
+            *_is_true_expression('nav2'), ") else 'parrot1_odom'",
+        ])])
     ld.add_action(TimerAction(
         period=start_delay,
         actions=[Node(
@@ -218,7 +224,7 @@ def add_rviz_instance(
             name='rviz2',
             output='screen',
             parameters=[{'use_sim_time': use_sim_time}],
-            arguments=['-d', PathJoinSubstitution([config_path, rviz_config])],
+            arguments=arguments,
             remappings=[
                 ('/tf', '/' + robot_namespace + '/tf'),
                 ('/tf_static', '/' + robot_namespace + '/tf_static'),
@@ -259,6 +265,9 @@ def _launch_gazebo(context):
             temporary.cleanup()
             raise
         world_path = result.path
+        if result.ground_mesh_path is not None:
+            actions.append(SetLaunchConfiguration(
+                '_rescue_ground_mesh', str(result.ground_mesh_path)))
 
         def cleanup(_event, _context):
             temporary.cleanup()
@@ -341,6 +350,11 @@ def generate_launch_description():
     )
     ld.add_action(parrot_launch_arg)
 
+    ld.add_action(DeclareLaunchArgument(
+        'human_detection', default_value='True',
+        description='Confirm rescue targets with synchronized Parrot RGB-D and thermal images',
+    ))
+
     world_launch_arg = DeclareLaunchArgument(
         'world',
         #default_value='rescue_forest',
@@ -405,6 +419,7 @@ def generate_launch_description():
 
     ld.add_action(SetLaunchConfiguration('_husky_spawn_z', '0.4'))
     ld.add_action(SetLaunchConfiguration('_parrot_spawn_z', '5.0'))
+    ld.add_action(SetLaunchConfiguration('_rescue_ground_mesh', ''))
     ld.add_action(OpaqueFunction(function=_launch_gazebo))
 
     # Bridge the global simulation clock once.
@@ -455,6 +470,16 @@ def generate_launch_description():
         yaw='1.5708',
         spawn_delay=6.0,
     )
+
+    ld.add_action(IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(PathJoinSubstitution([
+            pkg_path, 'launch', '41068_target_localization.launch.py'])),
+        launch_arguments={
+            'use_sim_time': use_sim_time,
+            'ground_mesh': LaunchConfiguration('_rescue_ground_mesh'),
+        }.items(),
+        condition=_if_all_true('parrot', 'human_detection'),
+    ))
 
     add_navigation_instance(
         ld,

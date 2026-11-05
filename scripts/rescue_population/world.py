@@ -26,6 +26,7 @@ class PopulationResult:
     rocks: int = 0
     ground_metadata: object = None
     spawn_ground: tuple = ()
+    ground_mesh_path: Path | None = None
 
 
 def nonnegative_integer(value, name):
@@ -139,6 +140,7 @@ def create_population_world(package_dir, world_name, output_path, *,
 
     placements = []
     metadata = None
+    ground_mesh_path = None
     spawn_ground = ()
     surface = None
     if humans+animals or procedural:
@@ -158,6 +160,7 @@ def create_population_world(package_dir, world_name, output_path, *,
             world.remove(terrain_include)
             world.append(ground.model)
             metadata = ground.metadata
+            ground_mesh_path = ground.mesh_path
             heights = []
             for name, x, y in (("husky", 0, 0), ("parrot", -10, 7)):
                 sample = surface.sample(x, y)
@@ -220,4 +223,4 @@ def create_population_world(package_dir, world_name, output_path, *,
     ET.indent(tree, space="  ")
     tree.write(output_path, encoding="unicode", xml_declaration=True)
     return PopulationResult(output_path, humans, animals, seed, tuple(placements),
-                            trees, rocks, metadata, spawn_ground)
+                            trees, rocks, metadata, spawn_ground, ground_mesh_path)

@@ -361,6 +361,34 @@ colcon test --packages-select 41068_ignition_bringup --ctest-args -R 'population
 ~~~
 
 Limits: at most 500 humans/animals and 2000 trees/rocks can be requested.
-Actual capacity depends on map size and clear ground. This does not add
-terrain-following to the autonomous flight controller or terrain-aware victim
-geolocation.
+Actual capacity depends on map size and clear ground.
+
+## Human rescue detection
+
+The Parrot launch starts human detection automatically. The thermal camera
+finds warm regions. The RGB detector compares visible shapes against the
+bundled Gazebo human and animal meshes. Synchronized depth and camera poses
+associate each RGB detection with its thermal region and locate the visible
+target on flat or uneven terrain. A downward 3D LiDAR refines the range
+when its returns agree with the RGB-D measurements for the same human.
+Five spatially consistent human observations across at least 0.35 seconds
+are required by default. The alert reports how many distinct LiDAR scans
+contributed. The depth estimate is used when LiDAR has no usable match.
+
+On `terrain_new`, the ground rescue waypoint uses the estimated X and Y and
+the elevation of that run's generated collision mesh. The dashboard and
+`~/rescue_logs/targets_*.csv` show both the person and the waypoint. Launch
+with `rviz:=true` to see the ground waypoint as a teal disk. The waypoint is
+also published as a pose on `/parrot1/rescue/waypoint`.
+
+To watch the alerts in a terminal, run
+
+```bash
+ros2 topic echo /parrot1/rescue/target_alert --qos-durability transient_local
+```
+
+The included RGB detector is tuned to the bundled actor models and colors.
+Give the drone a clear view within RGB-D range. Distant, clipped, occluded
+or ambiguous warm targets may remain unverified. The thermal feed still
+shows heat signatures, including animals. Launch with `human_detection:=false`
+to disable the confirmation node.
