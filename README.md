@@ -297,3 +297,70 @@ If you get an error like:
 ```bash
 export QT_QPA_PLATFORM=xcb
 ```
+
+
+
+## Seeded ground, trees, rocks and rescue targets
+
+The terrain_new world generates a new map at startup using the individual
+meshes in models/ground, models/tree and models/rock. The same spawn_seed and
+settings reproduce the same ground and scenery. Changing the seed changes the
+hills, tree and rock layouts, orientations and size variations.
+
+~~~bash
+cd ~/41068_ws
+source /opt/ros/humble/setup.bash
+source install/local_setup.bash
+ros2 launch 41068_ignition_bringup 41068_ignition_parrot.launch.py world:=terrain_new trees:=80 rocks:=25 humans:=3 animals:=5 map_size:=150 terrain_height:=8 terrain_roughness:=0.5 spawn_seed:=42
+~~~
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| trees | 80 | Number of individual trees; 0 disables trees |
+| rocks | 25 | Number of individual rocks; 0 disables rocks |
+| humans | 3 | Number of stationary, warm human targets |
+| animals | 5 | Number of stationary, warm animal targets |
+| map_size | 150 | Width and length in metres; minimum 30 |
+| terrain_height | 8 | Maximum peak-to-valley ground relief in metres; 0 is flat |
+| terrain_roughness | 0.5 | Detail from 0 (broad smooth hills) to 1 (rougher ground) |
+| spawn_seed | 42 | Nonnegative seed controlling the generated map |
+
+Use map_size to resize the generated map. Human and animal meshes retain
+realistic sizes. The generator rebuilds ground geometry and matching collision
+geometry on each launch, even when all four object counts are zero. Robot
+spawn pads stay clear and their starting heights follow the generated surface.
+
+Trees and rocks are static, with physical collisions and ambient temperatures.
+Humans and animals avoid tree canopies, rocks, each other and steep or uneven
+patches. If a small or crowded map cannot fit the requested counts, launch
+reports an error; reduce counts or enlarge map_size.
+
+The animal_species option selects a comma-separated mix, for example
+animal_species:=deer,bear. Available models are bear, deer, bird, mouse,
+kangaroo and horse.
+
+Restart the simulation to change settings. Map generation leaves the supplied
+meshes and source world read-only, preserves the sky and lighting, and cleans
+its temporary files when the launch stops. Other demo worlds keep their
+existing content and default to zero added scenery and targets.
+
+After pulling changes, rebuild once with:
+
+~~~bash
+cd ~/41068_ws
+source /opt/ros/humble/setup.bash
+colcon build --packages-select 41068_ignition_bringup --symlink-install
+source install/local_setup.bash
+~~~
+
+Pure geometry, placement and reproducibility tests are registered with CTest
+when BUILD_TESTING is enabled. To run the feature checks:
+
+~~~bash
+colcon test --packages-select 41068_ignition_bringup --ctest-args -R 'population_|generated_ground'
+~~~
+
+Limits: at most 500 humans/animals and 2000 trees/rocks can be requested.
+Actual capacity depends on map size and clear ground. This does not add
+terrain-following to the autonomous flight controller or terrain-aware victim
+geolocation.

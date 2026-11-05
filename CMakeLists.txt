@@ -7,6 +7,7 @@ endif()
 
 # Find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(ament_cmake_python REQUIRED)
 find_package(ros_ign_interfaces REQUIRED)
 
 # Install package resources
@@ -15,11 +16,14 @@ install(
     config
     launch
     models
+    Human
     urdf_husky
     worlds
     urdf_parrot
   DESTINATION share/${PROJECT_NAME}
 )
+
+ament_python_install_package(rescue_population PACKAGE_DIR scripts/rescue_population)
 
 # Existing Python scripts
 install(
@@ -77,6 +81,15 @@ install(
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+  find_package(ament_cmake_pytest REQUIRED)
+  foreach(population_test terrain entities world props)
+    ament_add_pytest_test(population_${population_test}
+      tests/test_population_${population_test}.py
+      TIMEOUT 90
+    )
+  endforeach()
+  ament_add_pytest_test(generated_ground tests/test_generated_ground.py TIMEOUT 90)
+
 endif()
 
 
