@@ -34,6 +34,7 @@ from tf2_ros import Buffer, TransformListener, TransformException
 from target_geometry import pixel_to_ground
 from target_tracks import StableTargetTracker
 from thermal_shape import classify_hot_silhouette
+from thermal_processing import decode_mono16, connected_hot_components, raw_to_celsius
 
 
 class TargetLocalizer(Node):
@@ -42,12 +43,12 @@ class TargetLocalizer(Node):
         self.declare_parameter('thermal_topic', '/parrot1/camera/thermal/image')
         self.declare_parameter('camera_frame', 'parrot1_thermal_camera_link')
         self.declare_parameter('fixed_frame', 'parrot1_odom')
-        self.declare_parameter('horizontal_fov_rad', 2.0944)
+        self.declare_parameter('horizontal_fov_rad', 0.610865)
         self.declare_parameter('ground_z_m', 0.0)
         self.declare_parameter('threshold_kelvin', 305.0)
         self.declare_parameter('min_hot_pixels', 100)
         self.declare_parameter('confirm_frames', 6)
-        self.declare_parameter('dedup_radius_m', 1.9)
+        self.declare_parameter('dedup_radius_m', 8)
         self.declare_parameter('max_target_distance_m', 30.0)
         self.declare_parameter('output_directory', '~/rescue_logs')
         self.declare_parameter('confirm_span_s', 0.65)
@@ -148,14 +149,8 @@ class TargetLocalizer(Node):
             return
         self.frames.popleft()
         try:
-            arr = np.ndarray(
-                shape=(image.height, image.width),
-                dtype=np.dtype('>u2') if image.is_bigendian else np.dtype('<u2'),
-                buffer=image.data,
-                strides=(image.step, 2))
-            mask = (arr >= self.threshold_raw).astype(np.uint8)
-            mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
-            components, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+            arr = decode_mono16(image)
+            components, labels, stats = connected_hot_components(arr, self.threshold_raw)
         except (ValueError, TypeError, cv2.error) as exc:
             self.warn_periodically(f'Cannot decode thermal image: {exc}')
             return
@@ -189,7 +184,7 @@ class TargetLocalizer(Node):
             if estimate is None:
                 continue
             hottest = int(arr[labels == component].max())
-            temp_c = hottest * 0.01 - 273.15
+            temp_c = raw_to_celsius(hottest)
             edge_clipped = (left == 0 or top == 0 or left + width >= image.width or top + height >= image.height)
             observations.append(dict(
                 xyz=estimate, temp_c=temp_c, foot_u=foot_u, foot_v=foot_v,

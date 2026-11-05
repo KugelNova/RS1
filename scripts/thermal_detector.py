@@ -4,11 +4,11 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 
-import numpy as np
-
 from sensor_msgs.msg import Image
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Point
+
+from thermal_processing import decode_mono16, summarize_hot_pixels
 
 
 class ThermalDetector(Node):
@@ -49,7 +49,7 @@ class ThermalDetector(Node):
         )
 
         self.get_logger().info(
-            'Listening to /parrot1/thermal/image_raw'
+            'Listening to /parrot1/camera/thermal/image'
         )
 
         self.get_logger().info(
@@ -65,81 +65,38 @@ class ThermalDetector(Node):
             )
             return
 
-        # Handle image byte order correctly.
-        if msg.is_bigendian:
-            dtype = np.dtype('>u2')
-        else:
-            dtype = np.dtype('<u2')
-
-        image = np.frombuffer(
-            msg.data,
-            dtype=dtype
-        ).reshape(
-            msg.height,
-            msg.width
-        )
-
-        # Hot pixels above threshold.
-        # Zero pixels are automatically excluded.
-        hot_mask = image >= self.threshold_raw
-
-        ys, xs = np.where(hot_mask)
-
-        detected = len(xs) >= self.min_pixels
+        try:
+            image = decode_mono16(msg)
+            hot = summarize_hot_pixels(image, self.threshold_raw, self.min_pixels)
+        except (TypeError, ValueError) as exc:
+            self.get_logger().warning(f'Invalid thermal image: {exc}')
+            return
 
         detected_msg = Bool()
-        detected_msg.data = detected
-
+        detected_msg.data = hot is not None
         self.detected_pub.publish(detected_msg)
 
-        if not detected:
-
+        if hot is None:
             if self.last_state is not False:
-                self.get_logger().info(
-                    'No thermal target detected'
-                )
-
+                self.get_logger().info('No thermal target detected')
             self.last_state = False
             return
 
-        # Bounding box.
-        x_min = int(xs.min())
-        x_max = int(xs.max())
-
-        y_min = int(ys.min())
-        y_max = int(ys.max())
-
-        # Target centre in image coordinates.
-        centre_x = float(xs.mean())
-        centre_y = float(ys.mean())
-
-        # Maximum temperature in detected region.
-        hottest_raw = int(image[hot_mask].max())
-
-        hottest_kelvin = hottest_raw * 0.01
-        hottest_celsius = hottest_kelvin - 273.15
-
-        # Publish pixel position.
-        #
-        # x = horizontal image pixel
-        # y = vertical image pixel
-        # z = maximum temperature in Celsius
+        # x/y identify the average pixel across all hot regions, preserving
+        # the existing topic contract (not a per-person detection).
         pixel_msg = Point()
-
-        pixel_msg.x = centre_x
-        pixel_msg.y = centre_y
-        pixel_msg.z = hottest_celsius
-
+        pixel_msg.x = hot['centre_x']
+        pixel_msg.y = hot['centre_y']
+        pixel_msg.z = hot['max_temp_c']
         self.pixel_pub.publish(pixel_msg)
 
-        # Only print continuously while target is present,
-        # useful during development.
         self.get_logger().info(
             f'TARGET DETECTED | '
-            f'pixels={len(xs)} | '
-            f'centre=({centre_x:.1f},{centre_y:.1f}) | '
-            f'box=({x_min},{y_min})-({x_max},{y_max}) | '
-            f'max={hottest_celsius:.2f} C'
+            f'pixels={hot["pixels"]} | '
+            f'centre=({hot["centre_x"]:.1f},{hot["centre_y"]:.1f}) | '
+            f'box=({hot["x_min"]},{hot["y_min"]})-'
+            f'({hot["x_max"]},{hot["y_max"]}) | '
+            f'max={hot["max_temp_c"]:.2f} C'
         )
 
         self.last_state = True

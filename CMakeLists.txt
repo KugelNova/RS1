@@ -72,6 +72,12 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
+# Pure shared thermal helpers for detector and localizer; no ROS executable.
+install(
+  FILES scripts/thermal_processing.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
@@ -101,6 +107,32 @@ install(
     scripts/full_flight_path.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME full_flight_path
+)
+
+# FAR-human experiment: an independent controller, preserving original flight path.
+install(
+  PROGRAMS scripts/full_flight_path_far_test.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME full_flight_path_far_test
+)
+
+# Passive recorder, does not issue velocity commands.
+install(
+  PROGRAMS scripts/record_target_trials.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME record_target_trials
+)
+
+
+# RS1 Mission Control (additive, supervisor-owned command routing)
+install(
+  PROGRAMS scripts/rs1_mission_supervisor.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME rs1_mission_supervisor
+)
+install(
+  FILES scripts/rs1_mission_logic.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 ament_package()
