@@ -48,7 +48,7 @@ class TargetLocalizer(Node):
         self.declare_parameter('threshold_kelvin', 305.0)
         self.declare_parameter('min_hot_pixels', 100)
         self.declare_parameter('confirm_frames', 6)
-        self.declare_parameter('dedup_radius_m', 5)
+        self.declare_parameter('dedup_radius_m', 8)
         self.declare_parameter('max_target_distance_m', 30.0)
         self.declare_parameter('output_directory', '~/rescue_logs')
         self.declare_parameter('confirm_span_s', 0.65)

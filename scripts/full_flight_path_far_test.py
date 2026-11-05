@@ -291,8 +291,13 @@ class FullFlightPath(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = FullFlightPath()
+    # The controller otherwise remains alive forever in FINISHED, so the
+    # mission supervisor never sees a completed search process.
+    completed = False
     try:
-        rclpy.spin(node)
+        while rclpy.ok() and node.state != 'FINISHED':
+            rclpy.spin_once(node, timeout_sec=0.1)
+        completed = node.state == 'FINISHED'
     except KeyboardInterrupt:
         pass
     finally:
@@ -300,6 +305,9 @@ def main(args=None):
         node.destroy_node()
         if rclpy.ok():
             rclpy.shutdown()
+    # A manual interruption is not a successful completed search.
+    if not completed:
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':

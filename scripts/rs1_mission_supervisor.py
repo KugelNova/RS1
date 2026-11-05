@@ -301,8 +301,16 @@ class MissionSupervisor(Node):
         if self.state == 'SEARCH':
             p = self.tasks.get('mission')
             rec = self.tasks.get('recorder')
-            if not p or p.poll() is not None:
-                self.hold('Search subprocess stopped; read supervisor/mission.log')
+            if p is None:
+                self.hold('Search process missing; check supervisor/mission.log')
+            elif p.poll() is not None:
+                if p.returncode == 0:
+                    # Successful mission exit stops the recorder and frees the UI.
+                    self.hold('Lawnmower scan completed; recorder stopped', 'IDLE')
+                else:
+                    self.hold(
+                        f'Search process exited with code {p.returncode}; '
+                        'check supervisor/mission.log')
             elif not rec or rec.poll() is not None:
                 self.hold('Search stopped: recorder unavailable; see supervisor/recorder.log')
             elif not self.pose_ok():
