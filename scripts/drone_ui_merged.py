@@ -32,7 +32,6 @@ from PyQt5.QtWidgets import (
     QLineEdit,
 )
 
-
 LINEAR_SPEED = 0.5
 ANGULAR_SPEED = 0.8
 
@@ -57,6 +56,11 @@ class DroneUI(QWidget):
         self.prev_flood = False
         self.pip_active = False
         self.is_auto_mode = False
+        
+        # --- NEW SURVEY TRACKING ---
+        self.survey_state = "IDLE"  # States: IDLE, SWEEPING, ALIGNING
+        self.survey_start_time = 0.0
+        self.human_yaw = None
         
         self.mission_ctrl = MissionController(self.node, self.log_event, self.run_survey)
 
@@ -326,14 +330,30 @@ class DroneUI(QWidget):
             self.log_event("❌ ERROR: Invalid target coordinates!")
 
     def return_to_base(self):
-        # UPDATED RTB COORDINATES
         self.mission_ctrl.start_rtb(-10.0, 7.0)
 
     def run_survey(self):
         self.mission_ctrl.cancel_mission()
-        self.log_event("🔄 SURVEY INITIATED: Commencing 360° sensor sweep...")
+        self.log_event("🔄 SURVEY INITIATED: Commencing full 360° sweep...")
         self.set_auto_mode()
+        
+        # Start the 360 sweep phase
+        self.survey_state = "SWEEPING"
+        self.survey_start_time = time.time()
+        self.human_yaw = None
+        
         self.set_command(az=0.5)
+
+    def stop_command(self):
+        self.mission_ctrl.cancel_mission()
+        self.survey_state = "IDLE"  # Reset survey state
+        self.cmd_lx = 0.0
+        self.cmd_ly = 0.0
+        self.cmd_lz = 0.0
+        self.cmd_ax = 0.0
+        self.cmd_ay = 0.0
+        self.cmd_az = 0.0
+        self.node.set_command(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
 
     # --------------------------------------------------
     # MODES & TOGGLES
@@ -399,6 +419,36 @@ class DroneUI(QWidget):
         self.mission_ctrl.update(state_str)
         
         current_human_count = getattr(self.node, 'human_count', 0)
+        
+        # --- TWO-PHASE SURVEY LOGIC ---
+        if getattr(self, 'survey_state', 'IDLE') == "SWEEPING":
+            # 1. Memorize the heading the moment a human is spotted
+            if current_human_count > 0 and self.human_yaw is None:
+                self.human_yaw = self.node.yaw
+                self.log_event(f"👁️ HUMAN SPOTTED at heading {math.degrees(self.human_yaw):.1f}°. Memorizing location...")
+            
+            # 2. Check if the full 360 sweep is complete (12.6s at 0.5 rad/s)
+            if time.time() - getattr(self, 'survey_start_time', 0) >= 12.6:
+                if self.human_yaw is not None:
+                    self.survey_state = "ALIGNING"
+                    self.log_event("🔄 SWEEP COMPLETE. Aligning to face the human...")
+                else:
+                    self.stop_command()
+                    self.log_event("🛑 SWEEP COMPLETE. No humans detected.")
+
+        elif getattr(self, 'survey_state', 'IDLE') == "ALIGNING":
+            # Calculate the shortest turn back to the memorized human heading
+            yaw_error = math.atan2(math.sin(self.human_yaw - self.node.yaw), math.cos(self.human_yaw - self.node.yaw))
+            
+            if abs(yaw_error) < 0.1:  # If within ~5 degrees of the target
+                self.stop_command()
+                self.log_event("🎯 TARGET LOCKED: Facing human from safe standoff distance.")
+            else:
+                # Steer proportionally toward the target heading
+                turn_speed = max(-0.5, min(0.5, yaw_error * 1.5))
+                self.set_command(az=turn_speed)
+
+        # Logging logic continues unchanged
         if current_human_count > self.prev_human_count:
             for i in range(self.prev_human_count + 1, current_human_count + 1):
                 self.log_event(f"HUMAN #{i} DETECTED at X:{self.node.x:.1f}, Y:{self.node.y:.1f}")
@@ -505,6 +555,7 @@ class DroneUI(QWidget):
 
     def stop_command(self):
         self.mission_ctrl.cancel_mission()
+        self.survey_state = "IDLE"  # Reset survey state
         self.cmd_lx = 0.0
         self.cmd_ly = 0.0
         self.cmd_lz = 0.0

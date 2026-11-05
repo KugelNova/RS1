@@ -73,6 +73,14 @@ class RescueDroneNode(Node):
         self.flight_state = "AUTOPILOT RUNNING"
 
     def timer_callback(self):
+
+        # --- HARDWARE SAFETY INTERLOCK ---
+        # Refuse to descend below 5.0m if fire or flood is currently detected
+        if self.is_navigating and (getattr(self, 'fire_thermal', False) or getattr(self, 'flood_detected', False)):
+            if self.target_z < 5.0:
+                self.target_z = 5.0  # Force drone to stay at least 5m high
+               
+       
         if self.is_navigating:
             dx = self.target_x - self.x
             dy = self.target_y - self.y
