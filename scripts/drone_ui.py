@@ -56,6 +56,7 @@ from PyQt5.QtWidgets import (
 
 
 from pyqt_rescue_records import rescue_log_dir, list_missions, read_mission, mission_path
+from rs1_coverage_route import plan_lawnmower, route_stats
 
 # RS1_PYQT_OPERATOR_DASHBOARD_V2
 
@@ -172,6 +173,9 @@ class DroneUiNode(Node):
                 'z_m': float(obj['z_m']),
                 'max_temp_c': float(obj['max_temp_c']),
                 'edge_clipped': str(obj.get('edge_clipped', 'False')).lower() == 'true',
+                # RS1_SIMPLE_TEMP_SHAPE_CLASSIFIER_V1
+                'classification': str(obj.get('classification', 'thermal_unverified')),
+                'shape_aspect_ratio': str(obj.get('shape_aspect_ratio', '')),
             }
             if not alert['frame_id'] or not all(
                 _math.isfinite(alert[k]) for k in ('x_m', 'y_m', 'z_m', 'max_temp_c')
@@ -798,10 +802,10 @@ class DroneUI(QWidget):
         bar.addWidget(goto_btn)
         layout.addLayout(bar)
 
-        self.rescue_table = QTableWidget(0, 9)
+        self.rescue_table = QTableWidget(0, 11)
         self.rescue_table.setHorizontalHeaderLabels([
             'ID', 'Sim time (s)', 'X (m)', 'Y (m)', 'Z (m)',
-            'Max °C', 'Frame', 'Edge clipped', 'Hot pixels'
+            'Max °C', 'Frame', 'Edge clipped', 'Hot pixels', 'Classification', 'H/W ratio'
         ])
         self.rescue_table.setAlternatingRowColors(True)
         self.rescue_table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -853,16 +857,12 @@ class DroneUI(QWidget):
         row.addWidget(self.sensors_stop_button)
         outer.addLayout(row)
 
-        # Row 2: launch search, abort/hold, and optional controlled descent.
+        # Row 2: search, abort/hold, and optional controlled descent.
+        # The mission recorder creates timestamped terrain CSVs automatically.
         row = QHBoxLayout()
         row.setSpacing(5)
-        row.addWidget(QLabel('Trial'))
-        self.trial_selector = QComboBox()
-        self.trial_selector.addItems(['far_pair', 'far_single', 'empty', 'ascent', 'spaced'])
-        self.trial_selector.setToolTip('Trial label used by the recorder during autonomous search')
-        row.addWidget(self.trial_selector)
         self.mission_start_button = QPushButton('Start Search')
-        self.mission_start_button.setToolTip('Start the existing far-human lawnmower mission; starts recorder automatically')
+        self.mission_start_button.setToolTip('Start selected search route through Mission Supervisor; starts recorder automatically')
         self.mission_start_button.clicked.connect(self._start_search)
         row.addWidget(self.mission_start_button)
         self.hold_button = QPushButton('Abort / Hold')
@@ -880,7 +880,35 @@ class DroneUI(QWidget):
         row.addWidget(self.land_button)
         outer.addLayout(row)
 
-        # Row 3: navigation to specified XY or selected saved rescue target.
+        # Terrain search is the only UI-managed search route.
+        # The XY defaults are in parrot1_odom, not world/map coordinates.
+        row = QHBoxLayout()
+        row.setSpacing(5)
+        row.addWidget(QLabel('Terrain sweep'))
+        self.route_fields = {}
+        for key, label, default in (
+                ('min_x', 'Xmin', '-22'), ('max_x', 'Xmax', '22'),
+                ('min_y', 'Ymin', '-22'), ('max_y', 'Ymax', '22'),
+                ('lane_spacing', 'Lane', '3'), ('altitude', 'Alt', '12')):
+            row.addWidget(QLabel(label))
+            field = QLineEdit(default)
+            field.setMaximumWidth(52)
+            field.setToolTip('XY bounds in parrot1_odom metres; altitude measured in odom Z')
+            self.route_fields[key] = field
+            row.addWidget(field)
+        self.route_preview_button = QPushButton('Preview')
+        self.route_preview_button.clicked.connect(self._preview_search_route)
+        row.addWidget(self.route_preview_button)
+        self.route_clearance_box = QCheckBox('Climb & route clear (sim)')
+        self.route_clearance_box.setToolTip(
+            'You have checked takeoff climb corridor, altitude, canopy, '
+            'obstacles and route in the actual running world. No downward sensor.')
+        row.addWidget(self.route_clearance_box)
+        for field in self.route_fields.values():
+            field.textChanged.connect(lambda _text: self.route_clearance_box.setChecked(False))
+        outer.addLayout(row)
+
+        # Row 4: navigation to specified XY or selected saved rescue target.
         row = QHBoxLayout()
         row.setSpacing(5)
         row.addWidget(QLabel('Go to'))
@@ -928,10 +956,58 @@ class DroneUI(QWidget):
             QMessageBox.warning(self, 'Mission supervisor', f'Cannot start: {e}')
 
     def _start_sensors(self):
-        self.node.request('start_sensors', trial=self.trial_selector.currentText())
+        self.node.request('start_sensors', trial='terrain')
+
+    def _terrain_request(self):
+        values = {}
+        for key, field in self.route_fields.items():
+            values[key] = float(field.text().strip())
+        if not math.isfinite(values['altitude']) or not 5 <= values['altitude'] <= 25:
+            raise ValueError('Altitude must be 5..25 m')
+        start = (self.node.x, self.node.y)
+        path = plan_lawnmower(*(values[key] for key in
+            ('min_x', 'max_x', 'min_y', 'max_y', 'lane_spacing')), start=start)
+        return values, route_stats(path, start=start)
+
+    def _preview_search_route(self):
+        try:
+            values, stats = self._terrain_request()
+        except (ValueError, TypeError) as exc:
+            QMessageBox.warning(self, 'Terrain route', str(exc))
+            return
+        QMessageBox.information(self, 'Terrain route preview',
+            f"Bounds X [{values['min_x']}, {values['max_x']}], "
+            f"Y [{values['min_y']}, {values['max_y']}] m\n"
+            f"Lane spacing: {values['lane_spacing']} m\n"
+            f"Waypoint count: {stats['waypoints']}\n"
+            f"Route including transit: ~{stats['distance_m']:.0f} m\n"
+            f"Minimum sim flight time at 1.2 m/s: "
+            f"{stats['optimistic_sim_minutes']:.1f} minutes\n\n"
+            'Real time may be several times slower due to Gazebo RTF.\n'
+            'This does NOT validate canopy clearance, actual thermal '
+            'coverage, or world-to-odom frame alignment.')
 
     def _start_search(self):
-        self.node.request('start_search', trial=self.trial_selector.currentText())
+        try:
+            values, stats = self._terrain_request()
+        except (ValueError, TypeError) as exc:
+            QMessageBox.warning(self, 'Terrain search', str(exc))
+            return
+        if not self.route_clearance_box.isChecked():
+            QMessageBox.warning(self, 'Terrain search',
+                'Verify the climb corridor, terrain clearance and planned '
+                'search area in the actual sim, then check the clearance box.')
+            return
+        if stats['optimistic_sim_minutes'] > 15:
+            reply = QMessageBox.question(self, 'Long terrain search',
+                f"Route is at least {stats['optimistic_sim_minutes']:.1f} "
+                'simulation minutes, and likely much slower in real time. '
+                'Proceed with this search sector?',
+                QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            if reply != QMessageBox.Yes:
+                return
+        self.node.request('start_search', trial='terrain', search_mode='terrain',
+                          clearance_verified=True, **values)
 
     def _hold_mission(self):
         self.stop_command()
@@ -992,9 +1068,9 @@ class DroneUI(QWidget):
             alert = self.node.live_rescue_alerts.popleft()
             self.live_alert_count += 1
             self.rescue_alert_label.setText(
-                f'NEW TARGET #{alert["id"]}  |  '
+                f'{alert["classification"].upper()}  |  TARGET #{alert["id"]}  |  '
                 f'X {alert["x_m"]:.2f}  Y {alert["y_m"]:.2f}  Z {alert["z_m"]:.2f} m  |  '
-                f'{alert["max_temp_c"]:.1f}°C  [{alert["frame_id"]}]'
+                f'{alert["max_temp_c"]:.2f}°C  [{alert["frame_id"]}]'
                 + ('  EDGE CLIPPED' if alert['edge_clipped'] else '')
             )
             self.rescue_alert_label.setObjectName('alertActive')
@@ -1063,6 +1139,8 @@ class DroneUI(QWidget):
                     f'{record["z_m"]:.3f}', f'{record["max_temp_c"]:.2f}',
                     record['frame_id'], 'YES' if record['edge_clipped'] else 'NO',
                     str(record['hot_pixels']),
+                    record.get('classification', 'thermal_unverified'),
+                    str(record.get('shape_aspect_ratio') or '—'),
                 )
                 for j, value in enumerate(columns):
                     self.rescue_table.setItem(i, j, QTableWidgetItem(value))

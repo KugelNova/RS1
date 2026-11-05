@@ -89,3 +89,52 @@ def classify_hot_silhouette(mask):
     else:
         result['reason'] = 'ambiguous_orientation_or_shape'
     return result
+
+
+# RS1_SIMPLE_TEMP_SHAPE_CLASSIFIER_V1
+# Transparent, simulation-specific classifier: BOTH temperature and a tall
+# bounding rectangle are required for a possible-human label.
+def classify_simple_thermal_candidate(max_temp_c, aspect_ratio, hot_pixels, *,
+                                     expected_temp_c=37.82,
+                                     temp_tolerance_c=0.15,
+                                     min_aspect_ratio=1.60,
+                                     min_hot_pixels=100):
+    """Return classification and both constituent tests; no ML or ROS needed.
+
+    aspect_ratio is height / width of ONE segmented hot component, not the
+    image aspect ratio. max_temp_c is the maximum within that same component.
+    A false-negative label here is not proof of an animal or an absent person.
+    """
+    import math
+    try:
+        temp = float(max_temp_c)
+        ratio = float(aspect_ratio)
+        pixels = int(hot_pixels)
+        expected = float(expected_temp_c)
+        tolerance = float(temp_tolerance_c)
+        aspect_min = float(min_aspect_ratio)
+        min_pixels = int(min_hot_pixels)
+    except (TypeError, ValueError, OverflowError):
+        return {'classification': 'uncertain', 'temp_match': False,
+                'shape_match': False, 'reason': 'invalid_measurement'}
+
+    if (not all(math.isfinite(v) for v in (temp, ratio, expected, tolerance, aspect_min))
+            or tolerance < 0 or aspect_min <= 0 or pixels < 0 or min_pixels <= 0):
+        return {'classification': 'uncertain', 'temp_match': False,
+                'shape_match': False, 'reason': 'invalid_measurement'}
+
+    # Inclusive tolerance allows the exact boundary after thermal rounding.
+    temp_match = abs(temp - expected) <= tolerance + 1e-9
+    shape_match = pixels >= min_pixels and ratio >= aspect_min
+    if temp_match and shape_match:
+        label = 'possible_human'
+        reason = 'temperature_and_upright_rectangle_match'
+    elif temp_match or shape_match:
+        label = 'uncertain'
+        reason = ('temperature_only' if temp_match else 'shape_only')
+    else:
+        label = 'other_thermal_target'
+        reason = 'neither_temperature_nor_shape_match'
+    return {'classification': label,
+            'temp_match': bool(temp_match), 'shape_match': bool(shape_match),
+            'reason': reason}

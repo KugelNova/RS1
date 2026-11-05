@@ -15,6 +15,8 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Bool, String
 from nav_msgs.msg import Odometry
 
+from rs1_coverage_route import plan_lawnmower, route_stats
+
 
 class FullFlightPath(Node):
     def __init__(self):
@@ -22,26 +24,47 @@ class FullFlightPath(Node):
 
         # WORLD AND FLIGHT PARAMETERS: adjust after checking the Gazebo model.
         self.pose_topic = '/parrot1/odom'
-        self.search_altitude = 12.0   # EXAMPLE ONLY; verify canopy + climb clearance
+        self.search_altitude = 12.0
         self.maximum_altitude = 15.0
         self.min_x, self.max_x = -3.0, 8.0
         self.min_y, self.max_y = -3.0, 6.0
         self.lane_spacing = 2.0
         self.waypoint_tolerance = 0.5
         self.altitude_tolerance = 0.2
-        self.forward_speed = 1.2
-        self.vertical_speed = 1.2
-        self.turn_speed = 1.2
+        self.forward_speed = 2.0
+        self.vertical_speed = 2.0
+        self.turn_speed = 2.0
         self.obstacle_distance = 2.0
         self.sensor_timeout = 1.0
-        self.inspect_seconds = 2  # Short hover on a thermal candidate
+        self.inspect_seconds = 0  # Short hover on a thermal candidate
         self.confirm_frames = 3
         self.thermal_timeout = 1.0
         self.thermal_rearm_seconds = 8.0
 
+        # Existing far-pair route remains the default. Terrain mode is explicit.
+        self.declare_parameter('search_mode', 'far_pair')
+        self.search_mode = str(self.get_parameter('search_mode').value)
+        if self.search_mode not in ('far_pair', 'terrain'):
+            raise ValueError('search_mode must be far_pair or terrain')
+        if self.search_mode == 'terrain':
+            for key, value in (
+                    ('coverage_min_x', -30.0), ('coverage_max_x', 30.0),
+                    ('coverage_min_y', -30.0), ('coverage_max_y', 30.0),
+                    ('coverage_lane_spacing', 3.0),
+                    ('coverage_altitude', 12.0),
+                    ('coverage_start_x', -10.0), ('coverage_start_y', 7.0),
+                    ('coverage_clearance_verified', False)):
+                self.declare_parameter(key, value)
+            self.search_altitude = float(self.get_parameter('coverage_altitude').value)
+            if not 5.0 <= self.search_altitude <= 25.0 or not math.isfinite(self.search_altitude):
+                raise ValueError('coverage_altitude must be finite and 5..25 metres')
+            self.maximum_altitude = 25.0
+
         # SAFETY GATE: must be set True after verifying that launch -> survey
         # altitude and the survey corridor are clear in *this* Gazebo world.
-        self.canopy_route_verified = True
+        self.canopy_route_verified = (
+            True if self.search_mode == 'far_pair'
+            else bool(self.get_parameter('coverage_clearance_verified').value))
 
         self.cmd_pub = self.create_publisher(Twist, '/parrot1/cmd_vel', 10)
         self.report_pub = self.create_publisher(
@@ -65,7 +88,25 @@ class FullFlightPath(Node):
         self.inspect_started = None
         self.rearm_until = 0.0
         self.last_hold_log = -1e9
-        self.waypoints = self.make_waypoints()
+        if self.search_mode == 'far_pair':
+            self.waypoints = self.make_waypoints()
+        else:
+            values = [float(self.get_parameter(key).value) for key in (
+                'coverage_min_x', 'coverage_max_x',
+                'coverage_min_y', 'coverage_max_y',
+                'coverage_lane_spacing')]
+            initial_xy = (
+                float(self.get_parameter('coverage_start_x').value),
+                float(self.get_parameter('coverage_start_y').value))
+            self.waypoints = plan_lawnmower(*values, start=initial_xy)
+            stats = route_stats(self.waypoints, start=initial_xy)
+            self.get_logger().warning(
+                'TERRAIN SEARCH: %.1f m route, %s waypoints, minimum %.1f '
+                'simulation minutes at 1.2 m/s, excluding turns and '
+                'inspections. XY frame is parrot1_odom; terrain clearance '
+                'and actual thermal swath are NOT verified.' % (
+                    stats['distance_m'], stats['waypoints'],
+                    stats['optimistic_sim_minutes']))
         self.waypoint_index = 0
         self.state = 'WAIT_FOR_CLEARANCE' if not self.canopy_route_verified else 'TAKEOFF'
         self.create_timer(0.1, self.control_loop)
@@ -155,9 +196,9 @@ class FullFlightPath(Node):
             and 0.0 <= t - self.last_scan <= self.sensor_timeout)
 
     def altitude_control(self):
-        return self.clamp(
+        return float(self.clamp(
             0.5 * (self.search_altitude - self.z),
-            -self.vertical_speed, self.vertical_speed)
+            -self.vertical_speed, self.vertical_speed))
 
     def start_inspection(self):
         self.stop()
@@ -295,7 +336,7 @@ def main(args=None):
     # mission supervisor never sees a completed search process.
     completed = False
     try:
-        while rclpy.ok() and node.state != 'FINISHED':
+        while rclpy.ok() and node.state not in ('FINISHED', 'BLOCKED'):
             rclpy.spin_once(node, timeout_sec=0.1)
         completed = node.state == 'FINISHED'
     except KeyboardInterrupt:

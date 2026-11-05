@@ -324,6 +324,7 @@ ros2 launch 41068_ignition_bringup 41068_ignition_parrot.launch.py world:=terrai
 | terrain_height | 8 | Maximum peak-to-valley ground relief in metres; 0 is flat |
 | terrain_roughness | 0.5 | Detail from 0 (broad smooth hills) to 1 (rougher ground) |
 | spawn_seed | 42 | Nonnegative seed controlling the generated map |
+| spawn_edge_margin | 10 | Minimum metres between a generated human/animal footprint and the terrain boundary |
 
 Use map_size to resize the generated map. Human and animal meshes retain
 realistic sizes. The generator rebuilds ground geometry and matching collision
@@ -331,6 +332,13 @@ geometry on each launch, even when all four object counts are zero. Robot
 spawn pads stay clear and their starting heights follow the generated surface.
 
 Trees and rocks are static, with physical collisions and ambient temperatures.
+Humans and animals also stay at least `spawn_edge_margin` metres away from
+all four map edges, including their physical footprint (not just their centre).
+For example, set `spawn_edge_margin:=15` for a 15-metre exclusion zone;
+`spawn_edge_margin:=0` restores the original edge clearance behaviour.
+This applies to generated targets in `world:=terrain_new`, not manually
+placed models in the fixed `rescue_forest` test worlds.
+
 Humans and animals avoid tree canopies, rocks, each other and steep or uneven
 patches. If a small or crowded map cannot fit the requested counts, launch
 reports an error; reduce counts or enlarge map_size.

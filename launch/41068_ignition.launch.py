@@ -250,6 +250,7 @@ def _launch_gazebo(context):
                 humans=humans, animals=animals, spawn_seed=seed,
                 species=LaunchConfiguration('animal_species').perform(context),
                 trees=trees, rocks=rocks,
+                spawn_edge_margin=LaunchConfiguration('spawn_edge_margin').perform(context),
                 terrain_height=(LaunchConfiguration('terrain_height').perform(context)
                                 if world == 'terrain_new' else None),
                 terrain_roughness=LaunchConfiguration('terrain_roughness').perform(context),
@@ -373,6 +374,10 @@ def generate_launch_description():
         description='Nonnegative random seed for repeatable population positions',
     ))
     ld.add_action(DeclareLaunchArgument(
+        'spawn_edge_margin', default_value='10',
+        description='Minimum metres between any generated human/animal footprint and map edge',
+    ))
+    ld.add_action(DeclareLaunchArgument(
         'animal_species', default_value='bear,deer,bird,mouse,kangaroo,horse',
         description='Comma-separated animal types to use for the startup population',
     ))
@@ -449,8 +454,8 @@ def generate_launch_description():
         xacro_parts=['urdf_parrot', 'parrot.urdf.xacro'],
         bridge_config='gazebo_bridge_parrot1.yaml',
         localization_config='robot_localization_parrot1.yaml',
-        x='-10.0',
-        y='7.0',
+        x='0',
+        y='0',
         z=LaunchConfiguration('_parrot_spawn_z'),
         yaw='1.5708',
         spawn_delay=6.0,

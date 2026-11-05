@@ -236,3 +236,48 @@ def test_invalid_scenery_controls_fail_before_writing(procedural_package, tmp_pa
     with pytest.raises(ValueError):
         build_generated(procedural_package, tmp_path / "bad", **{field: value})
     assert not (tmp_path / "bad/world.sdf").exists()
+
+@pytest.mark.parametrize("seed", [0, 1, 42, 127])
+def test_default_edge_margin_excludes_humans_and_animals(package, tmp_path, seed):
+    result = build(package, tmp_path, humans=4, animals=6, spawn_seed=seed)
+    assert len(result.placements) == 10
+    xmin, xmax, ymin, ymax = (-20, 20, -20, 20)
+    for target in result.placements:
+        assert target["kind"] in ("human", "animal")
+        clearance = target["radius"] + 10.0
+        assert target["x"] - xmin >= clearance - 1e-9
+        assert xmax - target["x"] >= clearance - 1e-9
+        assert target["y"] - ymin >= clearance - 1e-9
+        assert ymax - target["y"] >= clearance - 1e-9
+
+
+def test_custom_edge_margin_is_applied_to_footprint(package, tmp_path):
+    result = build(package, tmp_path, humans=2, animals=3,
+                   spawn_edge_margin="14")
+    for target in result.placements:
+        assert min(target["x"] + 20, 20 - target["x"],
+                   target["y"] + 20, 20 - target["y"]) >= 14 + target["radius"] - 1e-9
+
+
+def test_zero_margin_still_permits_original_placement(package, tmp_path):
+    result = build(package, tmp_path, humans=2, animals=3,
+                   spawn_edge_margin=0)
+    assert len(result.placements) == 5
+    for target in result.placements:
+        assert min(target["x"] + 20, 20 - target["x"],
+                   target["y"] + 20, 20 - target["y"]) >= target["radius"] - 1e-9
+
+
+@pytest.mark.parametrize("margin", ["-1", "nan", "inf", "invalid"])
+def test_invalid_edge_margin_rejected_before_world_written(package, tmp_path, margin):
+    with pytest.raises(ValueError, match="spawn_edge_margin"):
+        build(package, tmp_path, humans=1, animals=1,
+              spawn_edge_margin=margin)
+    assert not (tmp_path / "populated.sdf").exists()
+
+
+def test_too_large_edge_margin_reports_no_space(package, tmp_path):
+    with pytest.raises(ValueError, match="decrease spawn_edge_margin"):
+        build(package, tmp_path, humans=1, animals=0,
+              spawn_edge_margin=21)
+    assert not (tmp_path / "populated.sdf").exists()

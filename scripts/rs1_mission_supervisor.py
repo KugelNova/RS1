@@ -23,6 +23,7 @@ from std_msgs.msg import String
 
 from rs1_mission_logic import (finite_xy, goto_step, descent_speed,
                                ODOM_TIMEOUT_S, SCAN_TIMEOUT_S, wrap_angle)
+from rs1_coverage_route import plan_lawnmower, route_stats
 
 PACKAGE = '41068_ignition_bringup'
 
@@ -183,7 +184,7 @@ class MissionSupervisor(Node):
                 return
             if action == 'start_sensors':
                 trial = str(req.get('trial', 'far_pair'))
-                if trial not in ('far_pair', 'far_single', 'empty', 'ascent', 'spaced'):
+                if trial not in ('far_pair', 'far_single', 'terrain', 'empty', 'ascent', 'spaced'):
                     raise ValueError('Invalid recorder trial')
                 self.start_sensors(trial)
                 return
@@ -210,12 +211,46 @@ class MissionSupervisor(Node):
                 if 'full_flight_path_far_test' in self.existing_nodes():
                     raise ValueError('An external far-flight controller is already running')
                 trial = str(req.get('trial', self.recorder_trial))
-                if trial not in ('far_pair', 'far_single', 'empty', 'ascent', 'spaced'):
+                if trial not in ('far_pair', 'far_single', 'terrain', 'empty', 'ascent', 'spaced'):
                     raise ValueError('Invalid recorder trial')
                 self.recorder_trial = trial
-                ok = self.managed_start('mission', ['ros2', 'run', PACKAGE,
+                mode = str(req.get('search_mode', 'far_pair'))
+                if mode not in ('far_pair', 'terrain'):
+                    raise ValueError('Unknown search_mode')
+                mission_args = ['ros2', 'run', PACKAGE,
                     'full_flight_path_far_test', '--ros-args',
-                    '-r', '/parrot1/cmd_vel:=/rs1/auto/cmd_vel'])
+                    '-r', '/parrot1/cmd_vel:=/rs1/auto/cmd_vel']
+                route_summary = 'Legacy far-pair route'
+                if mode == 'terrain':
+                    if req.get('clearance_verified') is not True:
+                        raise ValueError('Terrain mission requires verified climb/route clearance')
+                    try:
+                        bounds = [float(req[key]) for key in
+                                  ('min_x', 'max_x', 'min_y', 'max_y', 'lane_spacing')]
+                        altitude = float(req['altitude'])
+                    except (KeyError, ValueError, TypeError) as exc:
+                        raise ValueError('Invalid terrain search bounds/altitude') from exc
+                    if not math.isfinite(altitude) or not 5 <= altitude <= 25:
+                        raise ValueError('Survey altitude must be 5..25 m')
+                    initial_xy = self.pose[:2]
+                    route = plan_lawnmower(*bounds, start=initial_xy)
+                    stats = route_stats(route, start=initial_xy)
+                    params = dict(zip((
+                        'coverage_min_x', 'coverage_max_x',
+                        'coverage_min_y', 'coverage_max_y',
+                        'coverage_lane_spacing'), bounds))
+                    params.update(search_mode='terrain', coverage_altitude=altitude,
+                                  coverage_start_x=initial_xy[0],
+                                  coverage_start_y=initial_xy[1],
+                                  coverage_clearance_verified=True)
+                    for key, value in params.items():
+                        mission_args.extend(['-p', f'{key}:={str(value).lower() if isinstance(value, bool) else value}'])
+                    route_summary = ('Terrain sweep: %d waypoints, %.0f m; '
+                                     '>=%.1f simulated minutes at 1.2 m/s, '
+                                     'excluding turns/inspections') % (
+                                         stats['waypoints'], stats['distance_m'],
+                                         stats['optimistic_sim_minutes'])
+                ok = self.managed_start('mission', mission_args)
                 if ok:
                     self.auto_at = 0.
                     self.state = 'SEARCH'
@@ -223,7 +258,7 @@ class MissionSupervisor(Node):
                         'record_target_trials', '--trial', trial]):
                         self.hold('Search cancelled: recorder failed to start')
                     else:
-                        self.reason = f'Managed search and {trial} recorder started'
+                        self.reason = f'{route_summary}; {trial} recorder started'
                 return
             if action == 'goto':
                 self.require_idle(require_scan=True)

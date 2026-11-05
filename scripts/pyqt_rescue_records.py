@@ -53,6 +53,9 @@ def read_mission(name, directory=None):
                     'frame_id': line['frame_id'],
                     'hot_pixels': int(line['hot_pixels']),
                     'edge_clipped': line['edge_clipped'].strip().lower() == 'true',
+                    # RS1_SIMPLE_TEMP_SHAPE_CLASSIFIER_V1; old CSVs supported.
+                    'classification': line.get('classification', 'thermal_unverified') or 'thermal_unverified',
+                    'shape_aspect_ratio': line.get('shape_aspect_ratio', '') or '',
                 }
                 for field in NUMERIC:
                     record[field] = float(line[field])

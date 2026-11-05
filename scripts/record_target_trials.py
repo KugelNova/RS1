@@ -20,7 +20,7 @@ FIELDS = [
     'target_id', 'alert_sim_time_sec', 'frame_id', 'target_x_m', 'target_y_m',
     'target_z_m', 'drone_odom_time_sec', 'drone_x_m', 'drone_y_m', 'drone_z_m',
     'odom_alert_delta_s', 'altitude_observation', 'max_temp_c',
-    'hot_pixels', 'edge_clipped',
+    'hot_pixels', 'edge_clipped', 'classification', 'shape_aspect_ratio',
 ]
 
 
@@ -79,6 +79,9 @@ class TrialRecorder(Node):
             'max_temp_c': alert.get('max_temp_c', ''),
             'hot_pixels': alert.get('hot_pixels', ''),
             'edge_clipped': alert.get('edge_clipped', ''),
+            # RS1_SIMPLE_TEMP_SHAPE_CLASSIFIER_V1
+            'classification': alert.get('classification', 'thermal_unverified'),
+            'shape_aspect_ratio': alert.get('shape_aspect_ratio', ''),
         }
         self.writer.writerow(record)
         self.file.flush()
@@ -97,7 +100,7 @@ class TrialRecorder(Node):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--trial', choices=['empty', 'ascent', 'spaced', 'far_single', 'far_pair'], required=True)
+    parser.add_argument('--trial', choices=['empty', 'ascent', 'spaced', 'far_single', 'far_pair', 'terrain'], required=True)
     parser.add_argument('--output-dir', default='~/rescue_logs')
     args, ros_args = parser.parse_known_args()
     rclpy.init(args=ros_args)

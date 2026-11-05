@@ -33,7 +33,7 @@ from tf2_ros import Buffer, TransformListener, TransformException
 
 from target_geometry import pixel_to_ground
 from target_tracks import StableTargetTracker
-from thermal_shape import classify_hot_silhouette
+from thermal_shape import classify_hot_silhouette, classify_simple_thermal_candidate
 from thermal_processing import decode_mono16, connected_hot_components, raw_to_celsius
 
 
@@ -43,20 +43,24 @@ class TargetLocalizer(Node):
         self.declare_parameter('thermal_topic', '/parrot1/camera/thermal/image')
         self.declare_parameter('camera_frame', 'parrot1_thermal_camera_link')
         self.declare_parameter('fixed_frame', 'parrot1_odom')
-        self.declare_parameter('horizontal_fov_rad', 0.610865)
+        self.declare_parameter('horizontal_fov_rad', 0.698132)
         self.declare_parameter('ground_z_m', 0.0)
         self.declare_parameter('threshold_kelvin', 305.0)
         self.declare_parameter('min_hot_pixels', 100)
-        self.declare_parameter('confirm_frames', 6)
-        self.declare_parameter('dedup_radius_m', 8)
-        self.declare_parameter('max_target_distance_m', 30.0)
+        self.declare_parameter('confirm_frames', 3)
+        self.declare_parameter('dedup_radius_m', 10)
+        self.declare_parameter('max_target_distance_m', 35.0)
         self.declare_parameter('output_directory', '~/rescue_logs')
-        self.declare_parameter('confirm_span_s', 0.65)
+        self.declare_parameter('confirm_span_s', 0.50)
         self.declare_parameter('max_scatter_m', 0.45)
         self.declare_parameter('candidate_radius_m', 0.8)
         self.declare_parameter('min_bbox_height_px', 24)
         self.declare_parameter('require_unclipped', True)
         self.declare_parameter('require_human_shape', False)  # opt-in to preserve legacy tests
+        self.declare_parameter('expected_human_temp_c', 37.0)
+        self.declare_parameter('human_temp_tolerance_c', 1.0)
+        self.declare_parameter('human_min_aspect_ratio', 1.20)
+        self.declare_parameter('human_max_aspect_ratio', 4.0)
 
         self.fixed_frame = self.get_parameter('fixed_frame').value
         self.camera_frame = self.get_parameter('camera_frame').value
@@ -76,6 +80,25 @@ class TargetLocalizer(Node):
             require_unclipped=self.get_parameter('require_unclipped').value)
         self.min_pixels = self.tracker.min_hot_pixels
         self.require_human_shape = bool(self.get_parameter('require_human_shape').value)
+        self.expected_human_temp_c = float(self.get_parameter('expected_human_temp_c').value)
+        self.human_temp_tolerance_c = float(self.get_parameter('human_temp_tolerance_c').value)
+        self.human_min_aspect_ratio = float(self.get_parameter('human_min_aspect_ratio').value)
+        self.human_max_aspect_ratio = float(
+            self.get_parameter('human_max_aspect_ratio').value
+        )
+
+        if (
+            not all(math.isfinite(v) for v in (
+                self.expected_human_temp_c,
+                self.human_temp_tolerance_c,
+                self.human_min_aspect_ratio,
+                self.human_max_aspect_ratio
+            ))
+            or self.human_temp_tolerance_c < 0
+            or self.human_min_aspect_ratio <= 0
+            or self.human_max_aspect_ratio < self.human_min_aspect_ratio
+        ):
+            raise ValueError('Invalid thermal temperature or H/W ratio limits')
         self.last_shape_event = {}
 
         self.tf_buffer = Buffer()
@@ -106,7 +129,8 @@ class TargetLocalizer(Node):
         self.csv_writer = csv.DictWriter(self.csv_file, fieldnames=[
             'id', 'sim_time_sec', 'frame_id', 'x_m', 'y_m', 'z_m',
             'max_temp_c', 'foot_pixel_u', 'foot_pixel_v', 'hot_pixels', 'edge_clipped',
-            'classification', 'shape_aspect_ratio', 'shape_score'])
+            'classification', 'shape_aspect_ratio', 'shape_score',
+            'temp_match', 'shape_match', 'classification_reason'])
         self.csv_writer.writeheader()
         self.csv_file.flush()
         self.get_logger().info(f'Localizer ready: fixed_frame={self.fixed_frame}; camera={self.camera_frame}')
@@ -170,6 +194,32 @@ class TargetLocalizer(Node):
                 stamp_sec = image.header.stamp.sec + image.header.stamp.nanosec * 1e-9
                 self.publish_shape_event(shape, (left, top, width, height), stamp_sec)
                 continue
+                        # Reject invalid thermal candidates before tracking.
+            hottest = int(arr[labels == component].max())
+            temp_c = raw_to_celsius(hottest)
+
+            gate = self.strict_candidate(temp_c, shape, count)
+
+            if gate['classification'] != 'possible_human':
+                stamp_sec = (
+                    image.header.stamp.sec
+                    + image.header.stamp.nanosec * 1e-9
+                )
+
+                metrics = dict(
+                    shape,
+                    max_temp_c=round(temp_c, 2),
+                    temp_match=gate['temp_match'],
+                    shape_match=gate['shape_match'],
+                    gate_reason=gate['reason'],
+                )
+
+                self.publish_shape_event(
+                    metrics,
+                    (left, top, width, height),
+                    stamp_sec
+                )
+                continue
             bottom_row = top + height - 1
             # Approximate ground-contact pixel: mean of the lowest 4 hot-pixel rows.
             # More accurate than the centroid for a standing target, but not exact.
@@ -183,8 +233,6 @@ class TargetLocalizer(Node):
                 origin, quaternion, self.ground_z, self.max_distance)
             if estimate is None:
                 continue
-            hottest = int(arr[labels == component].max())
-            temp_c = raw_to_celsius(hottest)
             edge_clipped = (left == 0 or top == 0 or left + width >= image.width or top + height >= image.height)
             observations.append(dict(
                 xyz=estimate, temp_c=temp_c, foot_u=foot_u, foot_v=foot_v,
@@ -198,6 +246,57 @@ class TargetLocalizer(Node):
                 confirmed['foot_u'], confirmed['foot_v'],
                 confirmed['pixels'], confirmed['edge_clipped'], image.header.stamp, confirmed.get('shape'))
 
+    def strict_candidate(self, temp_c, shape, pixels):
+        """
+        A candidate is accepted only when temperature AND H/W ratio
+        are both inside their configured inclusive ranges.
+        """
+
+        try:
+            temp_c = float(temp_c)
+            ratio = float(shape.get('aspect_ratio', float('nan')))
+
+            temp_ok = (
+                math.isfinite(temp_c)
+                and abs(temp_c - self.expected_human_temp_c)
+                <= self.human_temp_tolerance_c + 1e-9
+            )
+
+            ratio_ok = (
+                math.isfinite(ratio)
+                and self.human_min_aspect_ratio
+                <= ratio
+                <= self.human_max_aspect_ratio
+                and pixels >= self.min_pixels
+            )
+
+        except (TypeError, ValueError, OverflowError):
+            temp_ok = False
+            ratio_ok = False
+
+        if temp_ok and ratio_ok:
+            classification = 'possible_human'
+            reason = 'temperature_and_ratio_match'
+
+        elif temp_ok:
+            classification = 'uncertain'
+            reason = 'ratio_out_of_range'
+
+        elif ratio_ok:
+            classification = 'uncertain'
+            reason = 'temperature_out_of_range'
+
+        else:
+            classification = 'other_thermal_target'
+            reason = 'temperature_and_ratio_rejected'
+
+        return {
+            'classification': classification,
+            'temp_match': bool(temp_ok),
+            'shape_match': bool(ratio_ok),
+            'reason': reason,
+        }
+
     def publish_shape_event(self, metrics, bbox, stamp_sec):
         # Throttle diagnostics per image region to avoid flooding PyQt / ROS.
         key = (metrics['classification'], bbox[0] // 40, bbox[1] // 40)
@@ -208,6 +307,34 @@ class TargetLocalizer(Node):
         self.shape_pub.publish(String(data=json.dumps(payload)))
 
     def add_target(self, xyz, temp_c, u, v, pixels, clipped, stamp, shape=None):
+        # Compare max component temperature + height/width of the same blob.
+        # Final safety check before allocating a target ID.
+        metrics = shape or {}
+
+        classification = self.strict_candidate(
+            temp_c,
+            metrics,
+            pixels
+        )
+
+        # Both conditions MUST pass.
+        if classification['classification'] != 'possible_human':
+            self.get_logger().debug(
+                f'Rejected {classification["reason"]}: '
+                f'{temp_c:.2f} C; '
+                f'H/W={metrics.get("aspect_ratio", 0.0)}, '
+                f'{pixels} hot pixels '
+                f'(no CSV/alert/marker)'
+            )
+            return
+        # RS1_REJECT_OTHER_THERMAL_TARGET_V1
+        # Do not allocate an ID, save CSV, publish rescue alert/pose, or add a
+        # marker for a target that fails BOTH simple classifier checks.
+        if classification['classification'] == 'other_thermal_target':
+            self.get_logger().debug(
+                f'Rejected other_thermal_target: {temp_c:.2f} C; '
+                f'{pixels} hot pixels (no CSV/alert/marker)')
+            return
         target_id = self.next_id
         self.next_id += 1
         self.targets.append({'id': target_id, 'xyz': xyz})
@@ -217,9 +344,12 @@ class TargetLocalizer(Node):
             'x_m': f'{xyz[0]:.3f}', 'y_m': f'{xyz[1]:.3f}', 'z_m': f'{xyz[2]:.3f}',
             'max_temp_c': f'{temp_c:.2f}', 'foot_pixel_u': f'{u:.1f}',
             'foot_pixel_v': f'{v:.1f}', 'hot_pixels': pixels, 'edge_clipped': clipped,
-            'classification': 'human_like' if self.require_human_shape else 'thermal_unverified',
+            'classification': classification['classification'],
             'shape_aspect_ratio': (f"{shape['aspect_ratio']:.3f}" if shape else ''),
-            'shape_score': (str(shape['shape_score']) if shape else '')}
+            'shape_score': (str(shape['shape_score']) if shape else ''),
+            'temp_match': classification['temp_match'],
+            'shape_match': classification['shape_match'],
+            'classification_reason': classification['reason']}
         self.csv_writer.writerow(record)
         self.csv_file.flush()
 
@@ -236,7 +366,8 @@ class TargetLocalizer(Node):
         self.publish_markers()
         self.get_logger().info(
             f'TARGET #{target_id} PING: ({xyz[0]:.2f}, {xyz[1]:.2f}, {xyz[2]:.2f}) '
-            f'[{self.fixed_frame}], max={temp_c:.2f} C, edge_clipped={clipped}, SAVED')
+            f'[{self.fixed_frame}], max={temp_c:.2f} C, edge_clipped={clipped}, '
+            f'class={classification["classification"]}, SAVED')
 
     def publish_markers(self):
         msg = MarkerArray()

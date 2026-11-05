@@ -62,13 +62,14 @@ def animal_species(value):
 
 
 def _clear_position(surface, rng, radius, base_radius, occupied, reserved_points,
-                    *, max_slope=20.0, max_relief=0.20):
+                    *, max_slope=20.0, max_relief=0.20, edge_margin=0.0):
     xmin, xmax, ymin, ymax = surface.bounds
-    if xmax - xmin <= 2*radius or ymax - ymin <= 2*radius:
+    inset = radius + edge_margin
+    if xmax - xmin < 2*inset or ymax - ymin < 2*inset:
         return None
     for _ in range(1200):
-        x = rng.uniform(xmin+radius, xmax-radius)
-        y = rng.uniform(ymin+radius, ymax-radius)
+        x = rng.uniform(xmin+inset, xmax-inset)
+        y = rng.uniform(ymin+inset, ymax-inset)
         if any(math.hypot(x-rx, y-ry) < radius+clearance
                for rx, ry, clearance in reserved_points):
             continue
@@ -95,7 +96,7 @@ def create_population_world(package_dir, world_name, output_path, *,
                             humans=3, animals=5, spawn_seed=42,
                             species=SUPPORTED_ANIMALS, trees=0, rocks=0,
                             terrain_height=None, terrain_roughness=0.5,
-                            map_size=None,
+                            map_size=None, spawn_edge_margin=10.0,
                             reserved_points=((0.0, 0.0, 3.0), (-10.0, 7.0, 3.0))):
     """Create an owned launch copy; original worlds and assets remain read-only.
 
@@ -113,6 +114,7 @@ def create_population_world(package_dir, world_name, output_path, *,
     if trees+rocks > MAX_PROPS:
         raise ValueError("Choose at most %d trees and rocks combined." % MAX_PROPS)
     roughness = finite_number(terrain_roughness, "terrain_roughness", 0, 1)
+    edge_margin = finite_number(spawn_edge_margin, "spawn_edge_margin", 0)
     procedural = terrain_height is not None or map_size is not None or bool(trees+rocks)
     height = finite_number(8 if terrain_height is None else terrain_height,
                            "terrain_height", 0) if procedural else None
@@ -203,11 +205,13 @@ def create_population_world(package_dir, world_name, output_path, *,
         for kind, index, species_name in requests:
             radius = footprint_radius(kind, package_dir, species_name)
             position = _clear_position(
-                surface, rng, radius, radius, placements, reserved_points)
+                surface, rng, radius, radius, placements, reserved_points,
+                edge_margin=edge_margin)
             if position is None:
                 raise ValueError("Could not fit the requested %d humans and %d animals "
                                  "on clear terrain. Reduce counts, enlarge the map, "
-                                 "or try another spawn_seed." % (humans, animals))
+                                 "decrease spawn_edge_margin, or try another "
+                                 "spawn_seed." % (humans, animals))
             x, y, z, yaw = position
             name = ("rescue_human_%03d" % index if kind == "human" else
                     "rescue_animal_%03d_%s" % (index, species_name))

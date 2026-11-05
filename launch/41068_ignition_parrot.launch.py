@@ -58,6 +58,10 @@ def generate_launch_description():
         'spawn_seed', default_value='42', description='Repeatable population placement seed',
     ))
     ld.add_action(DeclareLaunchArgument(
+        'spawn_edge_margin', default_value='10',
+        description='Minimum metres between generated rescue targets and map edge',
+    ))
+    ld.add_action(DeclareLaunchArgument(
         'animal_species', default_value='bear,deer,bird,mouse,kangaroo,horse',
         description='Comma-separated animal types for startup spawning',
     ))
@@ -82,6 +86,7 @@ def generate_launch_description():
             'terrain_height': LaunchConfiguration('terrain_height'),
             'terrain_roughness': LaunchConfiguration('terrain_roughness'),
             'spawn_seed': LaunchConfiguration('spawn_seed'),
+            'spawn_edge_margin': LaunchConfiguration('spawn_edge_margin'),
             'animal_species': LaunchConfiguration('animal_species'),
             'husky': 'False',
             'parrot': 'True',

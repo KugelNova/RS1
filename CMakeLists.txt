@@ -89,6 +89,7 @@ if(BUILD_TESTING)
     )
   endforeach()
   ament_add_pytest_test(generated_ground tests/test_generated_ground.py TIMEOUT 90)
+  ament_add_pytest_test(rs1_coverage_route tests/test_rs1_coverage_route.py TIMEOUT 30)
 
 endif()
 
@@ -114,6 +115,12 @@ install(
   PROGRAMS scripts/full_flight_path_far_test.py
   DESTINATION lib/${PROJECT_NAME}
   RENAME full_flight_path_far_test
+)
+
+# Pure-Python sweep route planning shared by flight controller, supervisor and UI.
+install(
+  FILES scripts/rs1_coverage_route.py
+  DESTINATION lib/${PROJECT_NAME}
 )
 
 # Passive recorder, does not issue velocity commands.
