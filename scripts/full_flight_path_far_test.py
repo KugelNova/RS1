@@ -16,6 +16,7 @@ from std_msgs.msg import Bool, String
 from nav_msgs.msg import Odometry
 
 from rs1_coverage_route import plan_lawnmower, route_stats
+from rs1_mission_logic import OverflightAssist
 
 
 class FullFlightPath(Node):
@@ -34,7 +35,7 @@ class FullFlightPath(Node):
         self.forward_speed = 2.0
         self.vertical_speed = 2.0
         self.turn_speed = 2.0
-        self.obstacle_distance = 2.0
+        self.obstacle_distance = 2.5
         self.sensor_timeout = 1.0
         self.inspect_seconds = 0  # Short hover on a thermal candidate
         self.confirm_frames = 3
@@ -66,6 +67,12 @@ class FullFlightPath(Node):
             True if self.search_mode == 'far_pair'
             else bool(self.get_parameter('coverage_clearance_verified').value))
 
+        # Overflight only in terrain mode after the existing clearance confirmation.
+        self.overflight_enabled = self.search_mode == 'terrain' and self.canopy_route_verified
+        self.overflight = OverflightAssist(
+            blocked_m=self.obstacle_distance,
+            cleared_m=self.obstacle_distance + 1.0,
+            maximum_z=self.maximum_altitude)
         self.cmd_pub = self.create_publisher(Twist, '/parrot1/cmd_vel', 10)
         self.report_pub = self.create_publisher(
             String, '/parrot1/thermal/investigation_report', 10)
@@ -79,6 +86,7 @@ class FullFlightPath(Node):
         self.x = self.y = self.z = self.yaw = None
         self.last_pose = self.last_scan = self.last_thermal = None
         self.front_distance = 0.0
+        self.front_scan_valid = False
         self.have_scan = False
         self.thermal_detected = False
         self.positive_frames = 0
@@ -172,6 +180,7 @@ class FullFlightPath(Node):
             elif msg.range_min <= distance <= msg.range_max:
                 front.append(float(distance))
         self.front_distance = min(front) if front else 0.0  # unknown = stop
+        self.front_scan_valid = bool(front)
         self.have_scan = True
         self.last_scan = self.now()
 
@@ -275,6 +284,28 @@ class FullFlightPath(Node):
                 self.finish_inspection()
             return
 
+        if self.overflight.active:
+            if not self.front_scan_valid:
+                self.state = 'BLOCKED'
+                self.stop()
+                self.get_logger().error('Overflight stopped: invalid forward LiDAR')
+                return
+            vz, completed, error = self.overflight.step(self.z, self.front_distance)
+            if error:
+                self.state = 'BLOCKED'
+                self.stop()
+                self.get_logger().error(error)
+            elif completed:
+                # Remain at the new, higher altitude for the remainder of survey.
+                self.search_altitude = self.z
+                self.stop()
+                self.get_logger().info(f'Overflight complete; survey now at Z={self.z:.2f} m')
+            else:
+                cmd = Twist()
+                cmd.linear.z = vz  # No horizontal motion during the climb
+                self.cmd_pub.publish(cmd)
+            return
+
         if self.waypoint_index >= len(self.waypoints):
             self.state = 'FINISHED'
             self.stop()
@@ -315,12 +346,18 @@ class FullFlightPath(Node):
             self.cmd_pub.publish(cmd)
             return
 
-        if self.front_distance < self.obstacle_distance:
+        if self.front_distance <= self.obstacle_distance:
+            if self.front_scan_valid and self.overflight_enabled and self.overflight.begin(self.z):
+                self.stop()
+                self.get_logger().warning(
+                    f'Forward obstacle at {self.front_distance:.2f} m; '
+                    'holding XY and climbing (overhead NOT sensor-verified)')
+                return
             self.state = 'BLOCKED'
             self.stop()
             self.get_logger().error(
-                f'Obstacle/invalid front scan at {self.front_distance:.2f} m '
-                'above canopy; no safe local route implemented')
+                f'Obstacle/invalid scan at {self.front_distance:.2f} m; '
+                'overflight unavailable or altitude limit reached')
             return
 
         clearance = max(0.0, self.front_distance - self.obstacle_distance)

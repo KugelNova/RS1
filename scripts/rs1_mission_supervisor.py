@@ -22,7 +22,8 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import String
 
 from rs1_mission_logic import (finite_xy, goto_step, descent_speed,
-                               ODOM_TIMEOUT_S, SCAN_TIMEOUT_S, wrap_angle)
+                               ODOM_TIMEOUT_S, SCAN_TIMEOUT_S, wrap_angle,
+                               manual_axis_speed, OverflightAssist)
 from rs1_coverage_route import plan_lawnmower, route_stats
 
 PACKAGE = '41068_ignition_bringup'
@@ -46,6 +47,11 @@ class MissionSupervisor(Node):
         self.pose_at = 0.0
         self.scan_at = 0.0
         self.front = 0.0
+        self.rear = 0.0
+        self.front_scan_valid = False
+        self.rear_scan_valid = False
+        self.goto_altitude = 12.0
+        self.goto_overflight = OverflightAssist(maximum_z=25.0)
         self.latest_manual = Twist()
         self.latest_auto = Twist()
         self.manual_at = 0.0
@@ -67,16 +73,23 @@ class MissionSupervisor(Node):
         self.pose_at = time.monotonic()
 
     def scan_cb(self, msg):
-        front = []
+        # The Parrot lidar covers 360 degrees; use the relevant direction.
+        front, rear = [], []
         for i, d in enumerate(msg.ranges):
             angle = wrap_angle(msg.angle_min + i * msg.angle_increment)
-            if abs(angle) > math.radians(20):
-                continue
             if math.isinf(d) and d > 0:
-                front.append(float(msg.range_max))
+                distance = float(msg.range_max)
             elif math.isfinite(d) and msg.range_min <= d <= msg.range_max:
-                front.append(float(d))
+                distance = float(d)
+            else:
+                continue
+            if abs(angle) <= math.radians(20):
+                front.append(distance)
+            if abs(abs(angle) - math.pi) <= math.radians(20):
+                rear.append(distance)
+        self.front_scan_valid, self.rear_scan_valid = bool(front), bool(rear)
         self.front = min(front) if front else 0.0
+        self.rear = min(rear) if rear else 0.0
         self.scan_at = time.monotonic()
 
     def pose_ok(self):
@@ -105,6 +118,7 @@ class MissionSupervisor(Node):
         # for a subprocess to exit, or an abort could continue moving.
         self.state = state
         self.goto_xy = None
+        self.goto_overflight.reset()
         self.reason = reason
         self.velocity()
         if was_search:
@@ -265,6 +279,8 @@ class MissionSupervisor(Node):
                 if str(req.get('frame_id', 'parrot1_odom')) != 'parrot1_odom':
                     raise ValueError('Only parrot1_odom coordinates are supported')
                 self.goto_xy = finite_xy(req.get('x'), req.get('y'))
+                self.goto_altitude = 12.0
+                self.goto_overflight.reset()
                 self.state = 'GOTO'
                 self.reason = f'Experimental go-to {self.goto_xy} at survey altitude'
                 return
@@ -360,7 +376,22 @@ class MissionSupervisor(Node):
                 self.hold('Manual stopped: odometry stale')
             elif time.monotonic() - self.manual_at < 0.5:
                 t = self.latest_manual
-                self.velocity(x=max(-0.5, min(0.5, t.linear.x)),
+                requested = (max(-0.5, min(0.5, t.linear.x))
+                             if math.isfinite(t.linear.x) else 0.0)
+                # Fail closed for forward/reverse motion when the 3 Hz scan is stale.
+                fresh = bool(self.scan_at and time.monotonic() - self.scan_at <= 0.75)
+                distance = self.front if requested >= 0.0 else self.rear
+                valid = self.front_scan_valid if requested >= 0.0 else self.rear_scan_valid
+                guarded = manual_axis_speed(requested, distance, fresh and valid)
+                if abs(requested) > 0.01:
+                    direction = 'front' if requested > 0 else 'rear'
+                    if abs(guarded) < 1e-6:
+                        self.reason = f'MANUAL SAFE STOP: {direction} range={distance:.2f} m'
+                    elif abs(guarded) < abs(requested) - 1e-6:
+                        self.reason = f'MANUAL SLOW: {direction} range={distance:.2f} m'
+                    else:
+                        self.reason = 'Manual control armed (hold-to-move)'
+                self.velocity(x=guarded,
                               z=max(-0.35, min(0.35, t.linear.z)),
                               yaw=max(-0.8, min(0.8, t.angular.z)))
             else:
@@ -370,8 +401,28 @@ class MissionSupervisor(Node):
                 self.hold('Go-to stopped: stale odometry or LiDAR')
                 return
             x,y,z,yaw = self.pose
-            vx,wz,vz,done,err = goto_step(x,y,z,yaw,*self.goto_xy,self.front)
-            if err:
+            if self.goto_overflight.active:
+                vz, completed, error = self.goto_overflight.step(z, self.front)
+                if error:
+                    self.hold(error)
+                elif completed:
+                    # Maintain the cleared altitude instead of descending into it.
+                    self.goto_altitude = z
+                    self.reason = f'Go-to resumed above obstacle at Z {z:.1f} m'
+                    self.velocity()
+                else:
+                    self.velocity(z=vz)  # XY stopped throughout the climb
+                return
+            vx,wz,vz,done,err = goto_step(
+                x,y,z,yaw,*self.goto_xy,self.front,
+                target_z=self.goto_altitude, maximum_z=25.0)
+            if err and err.startswith('Obstacle') and self.front_scan_valid and self.front > 0:
+                if self.goto_overflight.begin(z):
+                    self.reason = 'Go-to: obstacle ahead; ascending while holding XY (simulation only)'
+                    self.velocity()
+                else:
+                    self.hold('Go-to stopped: overflight altitude limit reached')
+            elif err:
                 self.hold('Go-to stopped: ' + err)
             elif done:
                 self.hold('Destination reached (XY tolerance 0.65 m)', 'ARRIVED')
