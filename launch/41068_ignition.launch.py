@@ -11,6 +11,7 @@ from launch.actions import (
     OpaqueFunction,
     RegisterEventHandler,
     SetEnvironmentVariable,
+    SetLaunchConfiguration,
     TimerAction,
 )
 from launch.conditions import IfCondition
@@ -236,16 +237,24 @@ def _launch_gazebo(context):
     world = LaunchConfiguration('world').perform(context)
     humans = nonnegative_integer(LaunchConfiguration('humans').perform(context), 'humans')
     animals = nonnegative_integer(LaunchConfiguration('animals').perform(context), 'animals')
+    trees = nonnegative_integer(LaunchConfiguration('trees').perform(context), 'trees')
+    rocks = nonnegative_integer(LaunchConfiguration('rocks').perform(context), 'rocks')
     seed = nonnegative_integer(LaunchConfiguration('spawn_seed').perform(context), 'spawn_seed')
     world_path = package_dir / 'worlds' / (world + '.sdf')
     actions = []
-    if humans or animals:
+    if world == 'terrain_new' or humans or animals or trees or rocks:
         temporary = tempfile.TemporaryDirectory(prefix='rescue-population-')
         try:
             result = create_population_world(
                 package_dir, world, Path(temporary.name) / (world + '.sdf'),
                 humans=humans, animals=animals, spawn_seed=seed,
-                species=LaunchConfiguration('animal_species').perform(context))
+                species=LaunchConfiguration('animal_species').perform(context),
+                trees=trees, rocks=rocks,
+                terrain_height=(LaunchConfiguration('terrain_height').perform(context)
+                                if world == 'terrain_new' else None),
+                terrain_roughness=LaunchConfiguration('terrain_roughness').perform(context),
+                map_size=(LaunchConfiguration('map_size').perform(context)
+                          if world == 'terrain_new' else None))
         except Exception:
             temporary.cleanup()
             raise
@@ -256,9 +265,13 @@ def _launch_gazebo(context):
 
         actions.extend([
             RegisterEventHandler(OnShutdown(on_shutdown=cleanup)),
-            LogInfo(msg='Placed %d humans and %d animals on the terrain (seed %d).'
-                    % (humans, animals, seed)),
+            LogInfo(msg='Generated map with %d trees, %d rocks, %d humans and %d animals '
+                    '(seed %d).' % (trees, rocks, humans, animals, seed)),
         ])
+        for robot, ground_z in result.spawn_ground:
+            clearance = 0.4 if robot == 'husky' else 5.0
+            actions.append(SetLaunchConfiguration(
+                '_' + robot + '_spawn_z', str(ground_z + clearance)))
     gui = LaunchConfiguration('gui').perform(context).lower() in ('true', '1', 'yes', 'on')
     actions.append(IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([
@@ -339,7 +352,9 @@ def generate_launch_description():
 
     for name, count, description in (
             ('humans', '3', 'Number of stationary humans at startup; 0 disables them'),
-            ('animals', '5', 'Number of stationary animals at startup; 0 disables them')):
+            ('animals', '5', 'Number of stationary animals at startup; 0 disables them'),
+            ('trees', '80', 'Number of individual trees at startup'),
+            ('rocks', '25', 'Number of individual rocks at startup')):
         ld.add_action(DeclareLaunchArgument(
             name,
             default_value=PythonExpression([
@@ -347,6 +362,12 @@ def generate_launch_description():
                 "' == 'terrain_new' else '0'"]),
             description=description,
         ))
+    for name, value, description in (
+            ('map_size', '150', 'Generated map width and length in metres (minimum 30)'),
+            ('terrain_height', '8', 'Maximum ground relief in metres; 0 makes flat ground'),
+            ('terrain_roughness', '0.5', 'Ground detail from 0 (smooth) to 1 (rough)')):
+        ld.add_action(DeclareLaunchArgument(
+            name, default_value=value, description=description))
     ld.add_action(DeclareLaunchArgument(
         'spawn_seed', default_value='42',
         description='Nonnegative random seed for repeatable population positions',
@@ -382,6 +403,8 @@ def generate_launch_description():
         value=server_config_file,
     ))
 
+    ld.add_action(SetLaunchConfiguration('_husky_spawn_z', '0.4'))
+    ld.add_action(SetLaunchConfiguration('_parrot_spawn_z', '5.0'))
     ld.add_action(OpaqueFunction(function=_launch_gazebo))
 
     # Bridge the global simulation clock once.
@@ -410,7 +433,7 @@ def generate_launch_description():
         localization_config='robot_localization_husky1.yaml',
         x='0.0',
         y='0.0',
-        z='0.4',
+        z=LaunchConfiguration('_husky_spawn_z'),
         spawn_delay=3.0,
     )
 
@@ -428,7 +451,7 @@ def generate_launch_description():
         localization_config='robot_localization_parrot1.yaml',
         x='-10.0',
         y='7.0',
-        z='5.0',
+        z=LaunchConfiguration('_parrot_spawn_z'),
         yaw='1.5708',
         spawn_delay=6.0,
     )

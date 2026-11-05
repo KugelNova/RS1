@@ -76,12 +76,13 @@ if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
   find_package(ament_cmake_pytest REQUIRED)
-  foreach(population_test terrain entities world)
+  foreach(population_test terrain entities world props)
     ament_add_pytest_test(population_${population_test}
       tests/test_population_${population_test}.py
       TIMEOUT 90
     )
   endforeach()
+  ament_add_pytest_test(generated_ground tests/test_generated_ground.py TIMEOUT 90)
 
 endif()
 
