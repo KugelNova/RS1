@@ -38,7 +38,8 @@ def generate_launch_description():
         'world',
         default_value='simple_trees',
         description='Which world to load',
-        choices=['simple_trees', 'large_demo', 'terrain_new'],
+        choices=['simple_trees', 'large_demo', 'rescue_forest', 'terrain_new',
+                 'rescue_forest_far_pair_test', 'rescue_forest_far_single_test'],
     ))
 
     for name, count in (('humans', '3'), ('animals', '5'), ('trees', '80'), ('rocks', '25')):

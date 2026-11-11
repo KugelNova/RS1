@@ -58,12 +58,13 @@ from PyQt5.QtWidgets import (
 from pyqt_rescue_records import rescue_log_dir, list_missions, read_mission, mission_path
 from rs1_coverage_route import plan_lawnmower, route_stats
 from live_elevation_map import LiveElevationMap
+from thermal_demo_filter import find_hot_objects
 
 # RS1_PYQT_OPERATOR_DASHBOARD_V2
 
-LINEAR_SPEED = 0.5
-ANGULAR_SPEED = 0.8
-VERTICAL_SPEED = 0.35  # m/s, manual climb/descent
+LINEAR_SPEED = 2.0
+ANGULAR_SPEED = 2.0
+VERTICAL_SPEED = 0.80  # m/s, manual climb/descent
 
 # Thermal display range.
 # 285 K = ~11.9 C
@@ -83,6 +84,7 @@ class DroneUiNode(Node):
 
         self.latest_rgb_image = None
         self.latest_thermal_image = None
+        self.human_only_overlay = True  # RS1_THERMAL_DEMO_FILTER_V1
         self.latest_scan = None
         self.live_rescue_alerts = deque(maxlen=100)
 
@@ -410,7 +412,8 @@ class DroneUiNode(Node):
                 QImage.Format_Grayscale8
             ).copy()
 
-            self.latest_thermal_image = qimage
+            # Annotate a COPY for demonstration; raw thermal data are unchanged.
+            self.latest_thermal_image = self._thermal_demo_overlay(qimage, thermal)
             self.last_thermal_time = time.monotonic()
 
         except Exception as exc:
@@ -418,6 +421,43 @@ class DroneUiNode(Node):
                 f'Thermal conversion failed: {exc}'
             )
 
+
+    # RS1 thermal demonstration overlay: human-only vs all hot components.
+    # Visualization only. Does NOT alter localizer / rescue target acceptance.
+    def _thermal_demo_overlay(self, image, thermal):
+        objects = find_hot_objects(thermal)
+        visible = [obj for obj in objects
+                   if not self.human_only_overlay or obj['human_candidate']]
+        # Render on a colour copy so the underlying grayscale camera is intact.
+        annotated = image.convertToFormat(QImage.Format_RGB888)
+        painter = QPainter(annotated)
+        try:
+            painter.setFont(QFont('DejaVu Sans', 9, QFont.Bold))
+            mode = 'HUMAN CANDIDATES' if self.human_only_overlay else 'ALL HEAT'
+            header = f'{mode}  |  shown {len(visible)}/{len(objects)}'
+            painter.fillRect(0, 0, min(annotated.width(), 260), 20,
+                             QColor(11, 17, 27, 230))
+            painter.setPen(QColor(245, 245, 245))
+            painter.drawText(5, 14, header)
+            for obj in visible[:30]:
+                x, y, w, h = obj['bbox']
+                human = obj['human_candidate']
+                colour = QColor(72, 230, 144) if human else QColor(255, 176, 64)
+                painter.setPen(QPen(colour, 2))
+                painter.drawRect(x, y, max(1, w-1), max(1, h-1))
+                label = (f"{'HUMAN?' if human else 'HEAT'} "
+                         f"{obj['temp_c']:.1f}C H/W={obj['aspect_ratio']:.2f}")
+                label_width = min(annotated.width() - x, max(90, 7 * len(label)))
+                if label_width < 1:
+                    continue
+                label_y = y - 17 if y >= 19 else min(annotated.height()-17, y+h+1)
+                painter.fillRect(x, label_y, label_width, 16,
+                                 QColor(11, 17, 27, 220))
+                painter.setPen(colour)
+                painter.drawText(x+2, label_y+12, label)
+        finally:
+            painter.end()
+        return annotated
 
     # --------------------------------------------------
     # ODOMETRY
@@ -642,6 +682,14 @@ class DroneUI(QWidget):
         self.view_selector.addItems(['RGB + Thermal', 'RGB Camera', 'IR / Thermal', 'LiDAR', 'Elevation Map', 'RGB + Thermal + Elevation'])
         self.view_selector.currentIndexChanged.connect(self._on_view_changed)
         selector.addWidget(self.view_selector)
+        self.human_only_checkbox = QCheckBox('Human-only thermal')
+        self.human_only_checkbox.setChecked(True)
+        self.human_only_checkbox.setToolTip(
+            'ON: highlight heat signatures matching 36–38 C and H/W 1.2–4.0. '
+            'OFF: highlight all heat signatures above 31.85 C (>=100 pixels). '
+            'Display-only demo: does not change rescue alerts or mission logic.')
+        self.human_only_checkbox.toggled.connect(self._set_human_only_overlay)
+        selector.addWidget(self.human_only_checkbox)
         selector.addStretch(1)
         left_layout.addLayout(selector)
 
@@ -1077,6 +1125,9 @@ class DroneUI(QWidget):
         self.stop_command()
         if idx != 0 and self.arm_button.isChecked():
             self.arm_button.setChecked(False)
+
+    def _set_human_only_overlay(self, enabled):
+        self.node.human_only_overlay = bool(enabled)
 
     def _on_view_changed(self, idx):
         # Move the one elevation widget instead of creating a second subscriber.

@@ -33,8 +33,8 @@ class FullFlightPath(Node):
         self.waypoint_tolerance = 0.5
         self.altitude_tolerance = 0.2
         self.forward_speed = 2.0
-        self.vertical_speed = 2.0
-        self.turn_speed = 2.0
+        self.vertical_speed = 3.0
+        self.turn_speed = 8.0
         self.obstacle_distance = 2.5
         self.sensor_timeout = 1.0
         self.inspect_seconds = 0  # Short hover on a thermal candidate

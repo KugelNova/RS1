@@ -161,7 +161,7 @@ def create_population_world(package_dir, world_name, output_path, *,
             world.append(ground.model)
             metadata = ground.metadata
             heights = []
-            for name, x, y in (("husky", 0, 0), ("parrot", -10, 7)):
+            for name, x, y in (("husky", 0, 0), ("parrot", 0, 0)):
                 sample = surface.sample(x, y)
                 if sample is None:
                     raise ValueError("map_size must include both robot spawn points.")

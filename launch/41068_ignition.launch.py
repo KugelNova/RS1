@@ -347,15 +347,16 @@ def generate_launch_description():
         #default_value='rescue_forest',
         default_value='simple_trees',
         description='Which world to load',
-        choices=['simple_trees', 'large_demo', 'rescue_forest', 'terrain_new'],
+        choices=['simple_trees', 'large_demo', 'rescue_forest', 'terrain_new',
+                 'rescue_forest_far_pair_test', 'rescue_forest_far_single_test'],
     )
     ld.add_action(world_launch_arg)
 
     for name, count, description in (
-            ('humans', '3', 'Number of stationary humans at startup; 0 disables them'),
-            ('animals', '5', 'Number of stationary animals at startup; 0 disables them'),
-            ('trees', '80', 'Number of individual trees at startup'),
-            ('rocks', '25', 'Number of individual rocks at startup')):
+            ('humans', '2', 'Number of stationary humans at startup; 0 disables them'),
+            ('animals', '3', 'Number of stationary animals at startup; 0 disables them'),
+            ('trees', '15', 'Number of individual trees at startup'),
+            ('rocks', '5', 'Number of individual rocks at startup')):
         ld.add_action(DeclareLaunchArgument(
             name,
             default_value=PythonExpression([
@@ -364,13 +365,13 @@ def generate_launch_description():
             description=description,
         ))
     for name, value, description in (
-            ('map_size', '150', 'Generated map width and length in metres (minimum 30)'),
+            ('map_size', '50', 'Generated map width and length in metres (minimum 30)'),
             ('terrain_height', '8', 'Maximum ground relief in metres; 0 makes flat ground'),
             ('terrain_roughness', '0.5', 'Ground detail from 0 (smooth) to 1 (rough)')):
         ld.add_action(DeclareLaunchArgument(
             name, default_value=value, description=description))
     ld.add_action(DeclareLaunchArgument(
-        'spawn_seed', default_value='42',
+        'spawn_seed', default_value='30',
         description='Nonnegative random seed for repeatable population positions',
     ))
     ld.add_action(DeclareLaunchArgument(

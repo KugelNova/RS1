@@ -189,6 +189,9 @@ def test_generated_world_has_exact_counts_and_preserves_sky(procedural_package, 
         for b in result.placements[i+1:]:
             assert math.hypot(a["x"]-b["x"], a["y"]-b["y"]) >= a["radius"]+b["radius"]+0.5
     assert dict(result.spawn_ground) == pytest.approx({"husky": 0, "parrot": 0}, abs=1e-8)
+    # Both robots spawn at world XY (0, 0); their ground sample must agree.
+    assert dict(result.spawn_ground)["parrot"] == pytest.approx(
+        dict(result.spawn_ground)["husky"], abs=1e-8)
 
 
 def test_seed_changes_ground_and_props_reproducibly(procedural_package, tmp_path):

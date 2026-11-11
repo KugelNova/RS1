@@ -96,11 +96,15 @@ class TestMissionUiDefaults(unittest.TestCase):
         self.assertFalse(self.calls)
         self.assertEqual(len(FakeMessageBox.warnings), 1)
 
-    def test_long_route_needs_confirmation(self):
+    def test_long_route_requires_standard_clearance_only(self):
+        # The old duration-based confirmation was deliberately removed from
+        # the UI; the normal route-clearance checkbox is still mandatory.
         self.stats['optimistic_sim_minutes'] = 25
+        self.ui.route_clearance_box.isChecked = lambda: False
         method('_start_search')(self.ui)
         self.assertFalse(self.calls)
-        FakeMessageBox.answer = FakeMessageBox.Yes
+        self.assertEqual(len(FakeMessageBox.warnings), 1)
+        self.ui.route_clearance_box.isChecked = lambda: True
         method('_start_search')(self.ui)
         self.assertEqual(len(self.calls), 1)
 

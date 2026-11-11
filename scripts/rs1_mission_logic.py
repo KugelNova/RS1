@@ -59,7 +59,7 @@ def goto_step(x, y, z, yaw, target_x, target_y, front_distance,
         return 0., clamp(1.1 * error, -0.5, 0.5), vz, False, ''
     if not math.isfinite(front_distance) or front_distance <= 2.5:
         return 0., 0., 0., False, 'Obstacle or invalid forward LiDAR (<2.5 m)'
-    vx = max(0., min(0.65, 0.4 * distance, 0.3 * (front_distance - 2.5)))
+    vx = max(0., min(2.0, 0.6 * distance, 0.3 * (front_distance - 2.5)))
     return vx, clamp(0.7 * error, -0.15, 0.15), vz, False, ''
 
 
